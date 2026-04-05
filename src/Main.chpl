@@ -37,8 +37,13 @@ module Main {
     rep.totalSec = t1 - t0;
     rep.passed = true;
 
-    writeln("Graph generated (CSR stub): vertices=", g.numVertices(),
+    writeln("Graph generated: vertices=", g.numVertices(),
             ", directed_edges=", g.numDirectedEdges());
+
+    // Визуальная проверка для очень маленьких графов.
+    if n <= 20 then
+      printSmallGraph(g);
+
     printReport(rep);
   }
 
