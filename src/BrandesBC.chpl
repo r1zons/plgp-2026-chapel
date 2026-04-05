@@ -117,7 +117,8 @@ module BrandesBC {
 
       // Обратный проход по вершинам в порядке невозрастания dist.
       // Без хранения P[w]: предшественники определяем по условию dist[v] = dist[w]-1.
-      for idx in stackSize-1..0 by -1 {
+      var idx = stackSize - 1;
+      while idx >= 0 {
         const w = stack[idx];
 
         for p in g.rowPtr[w]..g.rowPtr[w+1]-1 {
@@ -139,6 +140,8 @@ module BrandesBC {
         if w != s {
           addFraction(numOut[w], denOut[w], deltaNum[w], deltaDen[w]);
         }
+
+        idx -= 1;
       }
     }
 
