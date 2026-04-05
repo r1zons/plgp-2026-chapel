@@ -40,7 +40,7 @@ module GraphGenerator {
       return false;
 
     const e = normalizeEdge(u, v);
-    if e in edgeDom then
+    if edgeDom.contains(e) then
       return false;
 
     edgeDom += e;

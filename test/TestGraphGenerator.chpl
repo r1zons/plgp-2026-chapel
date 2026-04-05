@@ -49,7 +49,7 @@ module TestGraphGenerator {
 
         // Считаем только одно направление, чтобы не ловить нормальную симметрию CSR.
         if v < u {
-          assert((a, b) not in seen);
+          assert(!seen.contains((a, b)));
           seen += (a, b);
         }
       }
