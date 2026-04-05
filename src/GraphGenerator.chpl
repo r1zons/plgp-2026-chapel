@@ -115,7 +115,7 @@ module GraphGenerator {
       return g;
     }
 
-    var rng = new randomStream(uint(64), seed=seed:uint(64));
+    var rng = new randomStream(uint(64), seed=seed:int(64));
 
     // Множество уникальных неориентированных рёбер.
     var edgeDom: domain(2*int);
