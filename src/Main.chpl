@@ -54,15 +54,20 @@ module Main {
     var g = generateConnectedRandomGraph(n, seed);
     const gen1 = timeSinceEpoch().totalSeconds();
 
+    var naiveNum: [0..n-1] int(64);
+    var naiveDen: [0..n-1] int(64);
+    var brandesNum: [0..n-1] int(64);
+    var brandesDen: [0..n-1] int(64);
+
     const naive0 = timeSinceEpoch().totalSeconds();
-    var naive = computeNaiveBC(g);
+    computeNaiveBCExact(g, naiveNum, naiveDen);
     const naive1 = timeSinceEpoch().totalSeconds();
 
     const brandes0 = timeSinceEpoch().totalSeconds();
-    var brandes = computeBrandesBC(g);
+    computeBrandesBCExact(g, brandesNum, brandesDen);
     const brandes1 = timeSinceEpoch().totalSeconds();
 
-    const ok = exactlyEqual(naive, brandes);
+    const ok = exactlyEqualFractions(naiveNum, naiveDen, brandesNum, brandesDen);
 
     const all1 = timeSinceEpoch().totalSeconds();
 
