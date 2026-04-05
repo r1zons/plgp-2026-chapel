@@ -29,7 +29,7 @@ module GraphGenerator {
   // Возвращает случайное целое в диапазоне [lo, hi].
   private proc randomIntInRange(ref rng: randomStream(uint(64)), lo: int, hi: int): int {
     const span = (hi - lo + 1):uint(64);
-    const r = rng.getNext() % span;
+    const r = rng.next() % span;
     return lo + r:int;
   }
 
