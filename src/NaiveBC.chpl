@@ -11,8 +11,8 @@
          вклад:
            sigma_s[v] * sigma_t[v] / sigma_s[t]
 
-  Для точности накопление идёт в рациональных дробях (num/den),
-  а преобразование в real делается только в конце.
+  Для точности накопление идёт в рациональных дробях (num/den).
+  В модуле используются только целочисленные расстояния и счётчики путей.
 */
 module NaiveBC {
   use GraphCSR;
@@ -145,17 +145,4 @@ module NaiveBC {
     }
   }
 
-  proc computeNaiveBC(ref g: CSRGraph): [0..g.n-1] real {
-    var bc: [0..g.n-1] real;
-    var num: [0..g.n-1] int(64);
-    var den: [0..g.n-1] int(64);
-
-    computeNaiveBCExact(g, num, den);
-
-    for v in 0..g.n-1 {
-      bc[v] = num[v]:real / den[v]:real;
-    }
-
-    return bc;
-  }
 }

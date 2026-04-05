@@ -4,7 +4,7 @@
   невзвешенного неориентированного графа в CSR.
 
   Для точности используем рациональное накопление (num/den).
-  На этом этапе приоритет — корректность и чистая структура кода.
+  В модуле используются только целочисленные расстояния и счётчики путей.
 */
 module BrandesBC {
   use GraphCSR;
@@ -153,17 +153,4 @@ module BrandesBC {
     }
   }
 
-  proc computeBrandesBC(ref g: CSRGraph): [0..g.n-1] real {
-    var bc: [0..g.n-1] real;
-    var num: [0..g.n-1] int(64);
-    var den: [0..g.n-1] int(64);
-
-    computeBrandesBCExact(g, num, den);
-
-    for v in 0..g.n-1 {
-      bc[v] = num[v]:real / den[v]:real;
-    }
-
-    return bc;
-  }
 }
