@@ -27,6 +27,8 @@ test:
 	./$(BIN_DIR)/test_compare
 	$(CHPL) $(TEST_DIR)/TestGraphGenerator.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_generator
 	./$(BIN_DIR)/test_generator
+	$(CHPL) $(TEST_DIR)/TestNaiveBC.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_naive_bc
+	./$(BIN_DIR)/test_naive_bc
 
 clean:
 	rm -rf $(BIN_DIR)

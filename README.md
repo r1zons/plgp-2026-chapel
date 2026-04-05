@@ -8,12 +8,13 @@
 - `src/Main.chpl` — минимальный CLI и orchestration.
 - `src/GraphCSR.chpl` — CSR-представление графа.
 - `src/GraphGenerator.chpl` — генерация случайного связного графа (остов + случайные рёбра), печать маленьких графов.
-- `src/NaiveBC.chpl` — заглушка baseline-алгоритма.
+- `src/NaiveBC.chpl` — корректный последовательный baseline-алгоритм наивного betweenness centrality (точное накопление в рациональных дробях).
 - `src/BrandesBC.chpl` — заглушка алгоритма Brandes.
 - `src/Compare.chpl` — точное сравнение массивов результатов.
 - `src/Report.chpl` — форматированный отчёт в stdout.
 - `test/TestCompare.chpl` — unit-тест сравнения.
 - `test/TestGraphGenerator.chpl` — unit-тесты генератора (включая случаи `n=5` и `n=7`).
+- `test/TestNaiveBC.chpl` — unit-тесты наивного BC на path/star графах с явной проверкой ожидаемых значений.
 - `scripts/pipeline.sh` — воспроизводимый pipeline.
 - `Makefile` — команды сборки/запуска/тестов.
 
@@ -27,6 +28,18 @@
 4. Результат возвращается сразу в CSR (`rowPtr`, `colIdx`).
 
 Для визуальной проверки есть `printSmallGraph(g, maxN=20)`.
+
+## Наивный BC (baseline)
+
+В `NaiveBC` реализован корректный последовательный алгоритм (без параллелизма):
+
+- перебор всех пар `(s, t)`, `s < t`;
+- BFS из `s` и из `t` для `dist` и количества кратчайших путей `sigma`;
+- вклад вершины `v` в точной рациональной форме:
+  `sigma_s(v) * sigma_t(v) / sigma_s(t)`;
+- накопление через целочисленные числитель/знаменатель с сокращением дробей.
+
+В `Main` время работы наивного алгоритма уже фиксируется в поле `naive_time_sec` отчёта.
 
 ## CLI
 
