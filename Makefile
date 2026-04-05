@@ -29,6 +29,8 @@ test:
 	./$(BIN_DIR)/test_generator
 	$(CHPL) $(TEST_DIR)/TestNaiveBC.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_naive_bc
 	./$(BIN_DIR)/test_naive_bc
+	$(CHPL) $(TEST_DIR)/TestBrandesBC.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_brandes_bc
+	./$(BIN_DIR)/test_brandes_bc
 
 clean:
 	rm -rf $(BIN_DIR)
