@@ -22,15 +22,16 @@ module Main {
   config const n = 10;
   config const seed = 1;
 
-  private proc printFirstMismatches(ref naiveNum: [] int(64), ref naiveDen: [] int(64),
-                                    ref brandesNum: [] int(64), ref brandesDen: [] int(64),
-                                    maxCount: int = 5) {
+  private proc printFirstRealMismatches(ref naive: [] real, ref brandes: [] real,
+                                        eps: real, maxCount: int = 5) {
     var printed = 0;
-    for v in naiveNum.domain {
-      if naiveNum[v] != brandesNum[v] || naiveDen[v] != brandesDen[v] {
+    for v in naive.domain {
+      const diff = abs(naive[v] - brandes[v]);
+      if diff > eps {
         writeln("Mismatch at vertex ", v,
-                ": naive=", naiveNum[v], "/", naiveDen[v],
-                ", brandes=", brandesNum[v], "/", brandesDen[v]);
+                ": naive=", naive[v],
+                ", brandes=", brandes[v],
+                ", |diff|=", diff);
         printed += 1;
         if printed >= maxCount then
           break;
@@ -63,23 +64,19 @@ module Main {
     if n <= 20 then
       printSmallGraph(g);
 
-    var naiveNum: [0..n-1] int(64);
-    var naiveDen: [0..n-1] int(64);
-    var brandesNum: [0..n-1] int(64);
-    var brandesDen: [0..n-1] int(64);
-
     const naive0 = timeSinceEpoch().totalSeconds();
-    computeNaiveBCExact(g, naiveNum, naiveDen);
+    var naive = computeNaiveBCReal(g);
     const naive1 = timeSinceEpoch().totalSeconds();
 
     const brandes0 = timeSinceEpoch().totalSeconds();
-    computeBrandesBCExact(g, brandesNum, brandesDen);
+    var brandes = computeBrandesBCReal(g);
     const brandes1 = timeSinceEpoch().totalSeconds();
 
-    const ok = exactlyEqualFractions(naiveNum, naiveDen, brandesNum, brandesDen);
+    const eps = 1.0e-9;
+    const ok = approximatelyEqual(naive, brandes, eps);
 
     if !ok {
-      printFirstMismatches(naiveNum, naiveDen, brandesNum, brandesDen, 5);
+      printFirstRealMismatches(naive, brandes, eps, 5);
     }
 
     var rep: RunReport;
@@ -93,7 +90,6 @@ module Main {
     rep.passed = ok;
 
     printRunReport(rep);
-
   }
 
   proc main() {
