@@ -25,13 +25,13 @@ module Main {
   config const parTasks = 0;
 
   private proc printFirstRealMismatches(ref base: [] real, ref other: [] real,
-                                        eps: real, label: string,
+                                        eps: real, cmpTag: string,
                                         maxCount: int = 5) {
     var printed = 0;
     for v in base.domain {
       const diff = abs(base[v] - other[v]);
       if diff > eps {
-        writeln("Mismatch (", label, ") at vertex ", v,
+        writeln("Mismatch (", cmpTag, ") at vertex ", v,
                 ": base=", base[v],
                 ", other=", other[v],
                 ", |diff|=", diff);

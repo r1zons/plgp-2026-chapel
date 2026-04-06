@@ -38,11 +38,9 @@ module BrandesBCParallel {
       const startS = tid * blockSize;
       const endS = min(n-1, startS + blockSize - 1);
 
-      if startS > endS then
-        continue;
-
-      // Локальные для задачи накопители и временные массивы.
-      var localBC: [0..n-1] real;
+      if startS <= endS {
+        // Локальные для задачи накопители и временные массивы.
+        var localBC: [0..n-1] real;
       localBC = 0.0;
 
       var dist: [0..n-1] int;
@@ -107,10 +105,11 @@ module BrandesBCParallel {
       }
 
       // Контролируемое слияние локального результата в общий.
-      mergeLock.readFE();
-      for v in 0..n-1 do
-        bc[v] += localBC[v];
-      mergeLock.writeEF(true);
+        mergeLock.readFE();
+        for v in 0..n-1 do
+          bc[v] += localBC[v];
+        mergeLock.writeEF(true);
+      }
     }
 
     // Поправка для неориентированного графа.
