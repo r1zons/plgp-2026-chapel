@@ -9,13 +9,15 @@
 - `src/GraphCSR.chpl` — CSR-представление графа.
 - `src/GraphGenerator.chpl` — генерация случайного связного графа (остов + случайные рёбра), печать маленьких графов.
 - `src/NaiveBC.chpl` — корректный последовательный baseline-алгоритм наивного betweenness centrality (точное накопление в рациональных дробях).
-- `src/BrandesBC.chpl` — корректный последовательный алгоритм Brandes (точное накопление в рациональных дробях).
+- `src/BrandesBC.chpl` — корректный последовательный алгоритм Brandes.
+- `src/BrandesBCParallel.chpl` — параллельный Brandes на `coforall` с блочным делением источников.
 - `src/Compare.chpl` — точное сравнение массивов результатов.
 - `src/Report.chpl` — форматированный отчёт в stdout.
 - `test/TestCompare.chpl` — unit-тест сравнения.
 - `test/TestGraphGenerator.chpl` — unit-тесты генератора (включая случаи `n=5` и `n=7`).
 - `test/TestNaiveBC.chpl` — unit-тесты наивного BC на path/star графах с явной проверкой ожидаемых значений.
-- `test/TestBrandesBC.chpl` — unit-тесты Brandes (path, star, малый случайный граф + набор случайных вариантов `n=10/20/30/40`) с точным сравнением против NaiveBC.
+- `test/TestBrandesBC.chpl` — unit-тесты последовательного Brandes.
+- `test/TestBrandesBCParallel.chpl` — unit-тесты параллельного Brandes (coforall) против NaiveBC.
 - `scripts/pipeline.sh` — воспроизводимый pipeline.
 - `Makefile` — команды сборки/запуска/тестов.
 
@@ -54,7 +56,7 @@
 - точное накопление вклада в рациональных дробях;
 - для неориентированного графа итог делится на 2.
 
-Время работы Brandes фиксируется в `Main` в поле `brandes_time_s`.
+Время работы последовательного и параллельного Brandes фиксируется отдельно в отчёте Run.
 
 Алгоритмы считают пути в невзвешенном графе: длины путей (`dist`) и количества кратчайших путей (`sigma`) хранятся как целые числа.
 Никакие вещественные веса рёбер в Naive/Brandes не используются.
@@ -86,7 +88,8 @@ make build
 make build       # собрать основной бинарник
 make generate    # запустить команду Generate (дефолтные n/seed)
 make run         # запустить команду Run (дефолтные n/seed)
-make test        # прогнать unit-тесты (включая расширенные random-варианты Brandes vs Naive)
+make test        # прогнать все unit-тесты, включая Brandes parallel
+make test-brandes-parallel # только тесты Brandes parallel
 make clean       # очистить bin/
 ```
 
@@ -111,12 +114,28 @@ make clean       # очистить bin/
 - `Generation time: ...`
 - `Naive time: ...`
 - `Brandes time: ...`
+- `Parallel Brandes time: ...`
 - `Naive total: ...`
 - `Brandes total: ...`
-- `Correctness check: PASS/FAIL`
+- `Parallel Brandes total: ...`
+- `Correctness check seq: PASS/FAIL`
+- `Correctness check par: PASS/FAIL`
 
 Пример:
 
 ```bash
 ./bin/bc_compare --command=Run --n=100 --seed=42
 ```
+
+
+## Параллельный Brandes (coforall)
+
+- Используется `coforall`, а не `forall`, чтобы явно создавать задачи по блокам источников и контролировать слияние результатов.
+- Источники делятся на равные блоки (`block decomposition`).
+- Граф (`CSR`) общий и не дублируется.
+- На задачу локальны: `dist`, `sigma`, `delta`, `queue`, `stack`, `localBC`.
+- Слияние `localBC` в глобальный `bc` выполняется под простой блокировкой.
+
+### Потенциальные узкие места по памяти
+
+Основной вклад в память даёт `localBC` на каждую задачу (размер `O(n)` на задачу), плюс временные массивы BFS/обратного прохода (`dist/sigma/delta/queue/stack`) также `O(n)` на задачу.
