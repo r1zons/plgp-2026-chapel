@@ -180,4 +180,74 @@ module BrandesBC {
     }
   }
 
+  proc computeBrandesBCReal(ref g: CSRGraph): [0..g.n-1] real {
+    const n = g.n;
+    var bc: [0..n-1] real;
+    bc = 0.0;
+
+    var dist: [0..n-1] int;
+    var sigma: [0..n-1] int(64);
+    var delta: [0..n-1] real;
+    var queue: [0..n-1] int;
+    var stack: [0..n-1] int;
+
+    for s in 0..n-1 {
+      dist = -1;
+      sigma = 0:int(64);
+      delta = 0.0;
+
+      var head = 0;
+      var tail = 0;
+      var stackSize = 0;
+
+      dist[s] = 0;
+      sigma[s] = 1;
+      queue[tail] = s;
+      tail += 1;
+
+      while head < tail {
+        const v = queue[head];
+        head += 1;
+
+        stack[stackSize] = v;
+        stackSize += 1;
+
+        for p in g.rowPtr[v]..g.rowPtr[v+1]-1 {
+          const w = g.colIdx[p];
+          if dist[w] < 0 {
+            dist[w] = dist[v] + 1;
+            queue[tail] = w;
+            tail += 1;
+          }
+          if dist[w] == dist[v] + 1 {
+            sigma[w] += sigma[v];
+          }
+        }
+      }
+
+      var idx = stackSize - 1;
+      while idx >= 0 {
+        const w = stack[idx];
+
+        for p in g.rowPtr[w]..g.rowPtr[w+1]-1 {
+          const v = g.colIdx[p];
+          if dist[v] == dist[w] - 1 {
+            delta[v] += (sigma[v]:real / sigma[w]:real) * (1.0 + delta[w]);
+          }
+        }
+
+        if w != s {
+          bc[w] += delta[w];
+        }
+        idx -= 1;
+      }
+    }
+
+    // undirected correction
+    for v in 0..n-1 do
+      bc[v] /= 2.0;
+
+    return bc;
+  }
+
 }

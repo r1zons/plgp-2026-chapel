@@ -171,4 +171,40 @@ module NaiveBC {
     }
   }
 
+  proc computeNaiveBCReal(ref g: CSRGraph): [0..g.n-1] real {
+    const n = g.n;
+    var bc: [0..n-1] real;
+    bc = 0.0;
+
+    var distS: [0..n-1] int;
+    var distT: [0..n-1] int;
+    var sigmaS: [0..n-1] int(64);
+    var sigmaT: [0..n-1] int(64);
+
+    for s in 0..n-1 {
+      bfsDistSigma(g, s, distS, sigmaS);
+
+      for t in s+1..n-1 {
+        if distS[t] < 0 then
+          continue;
+
+        bfsDistSigma(g, t, distT, sigmaT);
+        const stDist = distS[t];
+        const stSigma = sigmaS[t]:real;
+
+        for v in 0..n-1 {
+          if v == s || v == t then
+            continue;
+
+          if distS[v] >= 0 && distT[v] >= 0 && distS[v] + distT[v] == stDist {
+            const contrib = (sigmaS[v]:real * sigmaT[v]:real) / stSigma;
+            bc[v] += contrib;
+          }
+        }
+      }
+    }
+
+    return bc;
+  }
+
 }

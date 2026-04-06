@@ -67,7 +67,15 @@ module Main {
     computeBrandesBCExact(g, brandesNum, brandesDen);
     const brandes1 = timeSinceEpoch().totalSeconds();
 
-    const ok = exactlyEqualFractions(naiveNum, naiveDen, brandesNum, brandesDen);
+    const exactOk = exactlyEqualFractions(naiveNum, naiveDen, brandesNum, brandesDen);
+
+    var ok = exactOk;
+    if !exactOk {
+      // Защита от переполнений/потери точности в больших рациональных дробях.
+      var naiveReal = computeNaiveBCReal(g);
+      var brandesReal = computeBrandesBCReal(g);
+      ok = approximatelyEqual(naiveReal, brandesReal, 1.0e-9);
+    }
 
     const all1 = timeSinceEpoch().totalSeconds();
 

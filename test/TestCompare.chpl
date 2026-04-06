@@ -12,6 +12,10 @@ module TestCompare {
     assert(exactlyEqual(a, b));
     assert(!exactlyEqual(a, c));
 
+    var ar: [0..1] real = [1.0, 2.0];
+    var br: [0..1] real = [1.0 + 1.0e-12, 2.0 - 1.0e-12];
+    assert(approximatelyEqual(ar, br, 1.0e-9));
+
     var nNum: [0..2] int(64) = [0, 3, 4];
     var nDen: [0..2] int(64) = [1, 1, 1];
     var bNum: [0..2] int(64) = [0, 3, 4];

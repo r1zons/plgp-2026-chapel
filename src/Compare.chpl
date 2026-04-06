@@ -21,4 +21,12 @@ module Compare {
     }
     return true;
   }
+
+  proc approximatelyEqual(a: [?D] real, b: [D] real, eps: real = 1.0e-9): bool {
+    for i in D {
+      if abs(a[i] - b[i]) > eps then
+        return false;
+    }
+    return true;
+  }
 }
