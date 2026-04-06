@@ -47,13 +47,14 @@ module Main {
     var g = generateConnectedRandomGraph(n, seed);
     const t1 = timeSinceEpoch().totalSeconds();
 
+    writeln("\n=== Generate ===");
     writeln("Graph generated: vertices=", g.numVertices(),
             ", directed_edges=", g.numDirectedEdges());
 
     if n <= 20 then
       printSmallGraph(g);
 
-    // Короткая сводка для Generate.
+    writeln("\n=== Generate: Summary ===");
     writeln("Graph size: ", n);
     writeln("Seed: ", seed);
     writeln("Generation time: ", t1 - t0);
@@ -82,6 +83,9 @@ module Main {
     const eps = 1.0e-9;
     const okSeq = approximatelyEqual(naive, brandesSeq, eps);
     const okPar = approximatelyEqual(naive, brandesPar, eps);
+
+    if !okSeq || !okPar then
+      writeln("\n=== Run: Mismatches ===");
 
     if !okSeq then
       printFirstRealMismatches(naive, brandesSeq, eps, "Naive vs Seq", 5);
