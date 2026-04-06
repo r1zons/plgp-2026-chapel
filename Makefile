@@ -6,7 +6,7 @@ TARGET := $(BIN_DIR)/bc_compare
 
 MAIN_SRC := $(SRC_DIR)/Main.chpl
 
-.PHONY: all build run generate test clean
+.PHONY: all build run generate test test-brandes clean
 
 all: build
 
@@ -34,3 +34,8 @@ test:
 
 clean:
 	rm -rf $(BIN_DIR)
+
+
+test-brandes: $(BIN_DIR)
+	$(CHPL) $(TEST_DIR)/TestBrandesBC.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_brandes_bc
+	./$(BIN_DIR)/test_brandes_bc

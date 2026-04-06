@@ -56,10 +56,23 @@ module NaiveBC {
   }
 
   private proc addFraction(ref accNum: int(64), ref accDen: int(64),
-                           addNum: int(64), addDen: int(64)) {
+                           addNumIn: int(64), addDenIn: int(64)) {
     // acc + add = accNum/accDen + addNum/addDen
-    var n = accNum * addDen + addNum * accDen;
-    var d = accDen * addDen;
+    var addNum = addNumIn;
+    var addDen = addDenIn;
+    reduceFraction(addNum, addDen);
+
+    if addNum == 0 then
+      return;
+
+    // Складываем через НОК знаменателей, чтобы меньше рисковать переполнением.
+    const g = gcdI64(accDen, addDen);
+    const leftMul = addDen / g;
+    const rightMul = accDen / g;
+
+    var n = accNum * leftMul + addNum * rightMul;
+    var d = accDen * leftMul;
+
     reduceFraction(n, d);
     accNum = n;
     accDen = d;
@@ -133,8 +146,21 @@ module NaiveBC {
 
           if distS[v] >= 0 && distT[v] >= 0 && distS[v] + distT[v] == stDist {
             // Вклад в BC(v): sigma_s(v) * sigma_t(v) / sigma_s(t)
-            const addNum = sigmaS[v] * sigmaT[v];
-            const addDen = stSigma;
+            // Перед умножением сокращаем с знаменателем.
+            var x = sigmaS[v];
+            var y = sigmaT[v];
+            var d = stSigma;
+
+            var g1 = gcdI64(x, d);
+            x /= g1;
+            d /= g1;
+
+            var g2 = gcdI64(y, d);
+            y /= g2;
+            d /= g2;
+
+            const addNum = x * y;
+            const addDen = d;
 
             if addNum != 0 {
               addFraction(numOut[v], denOut[v], addNum, addDen);

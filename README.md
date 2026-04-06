@@ -15,7 +15,7 @@
 - `test/TestCompare.chpl` — unit-тест сравнения.
 - `test/TestGraphGenerator.chpl` — unit-тесты генератора (включая случаи `n=5` и `n=7`).
 - `test/TestNaiveBC.chpl` — unit-тесты наивного BC на path/star графах с явной проверкой ожидаемых значений.
-- `test/TestBrandesBC.chpl` — unit-тесты Brandes (path, star, малый случайный граф) с точным сравнением против NaiveBC.
+- `test/TestBrandesBC.chpl` — unit-тесты Brandes (path, star, малый случайный граф + набор случайных вариантов `n=10/20/30/40`) с точным сравнением против NaiveBC.
 - `scripts/pipeline.sh` — воспроизводимый pipeline.
 - `Makefile` — команды сборки/запуска/тестов.
 
@@ -85,7 +85,7 @@ make build
 make build       # собрать основной бинарник
 make generate    # запустить команду Generate (дефолтные n/seed)
 make run         # запустить команду Run (дефолтные n/seed)
-make test        # прогнать unit-тесты
+make test        # прогнать unit-тесты (включая расширенные random-варианты Brandes vs Naive)
 make clean       # очистить bin/
 ```
 

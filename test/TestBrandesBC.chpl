@@ -96,10 +96,22 @@ module TestBrandesBC {
     checkAgainstNaive(g);
   }
 
+  private proc testRandomVariants() {
+    // Набор вариантов для поимки регрессий на случайных графах.
+    const ns: [0..3] int = [10, 20, 30, 40];
+    const seeds: [0..3] int = [11, 42, 77, 123];
+
+    for i in ns.domain {
+      var g = generateConnectedRandomGraph(ns[i], seeds[i]);
+      checkAgainstNaive(g);
+    }
+  }
+
   proc main() {
     testPathGraph();
     testStarGraph();
     testSmallRandomGraph();
+    testRandomVariants();
     writeln("TestBrandesBC: PASS");
   }
 }

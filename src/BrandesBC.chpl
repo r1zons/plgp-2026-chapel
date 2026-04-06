@@ -48,9 +48,20 @@ module BrandesBC {
   }
 
   private proc addFraction(ref accNum: int(64), ref accDen: int(64),
-                           addNum: int(64), addDen: int(64)) {
-    var n = accNum * addDen + addNum * accDen;
-    var d = accDen * addDen;
+                           addNumIn: int(64), addDenIn: int(64)) {
+    var addNum = addNumIn;
+    var addDen = addDenIn;
+    reduceFraction(addNum, addDen);
+
+    if addNum == 0 then
+      return;
+
+    const g = gcdI64(accDen, addDen);
+    const leftMul = addDen / g;
+    const rightMul = accDen / g;
+
+    var n = accNum * leftMul + addNum * rightMul;
+    var d = accDen * leftMul;
     reduceFraction(n, d);
     accNum = n;
     accDen = d;
@@ -127,11 +138,27 @@ module BrandesBC {
           if dist[v] == dist[w] - 1 {
             // contrib(v <- w) = (sigma[v]/sigma[w]) * (1 + delta[w])
             // 1 + delta[w] = (deltaDen[w] + deltaNum[w]) / deltaDen[w]
-            const onePlusNum = deltaDen[w] + deltaNum[w];
-            const onePlusDen = deltaDen[w];
+            var onePlusNum = deltaDen[w] + deltaNum[w];
+            var onePlusDen = deltaDen[w];
+            reduceFraction(onePlusNum, onePlusDen);
 
-            const addNum = sigma[v] * onePlusNum;
-            const addDen = sigma[w] * onePlusDen;
+            // (sigma[v]/sigma[w]) * (onePlusNum/onePlusDen)
+            // Сокращаем крест-накрест до умножения.
+            var aNum = sigma[v];
+            var aDen = sigma[w];
+            var bNum = onePlusNum;
+            var bDen = onePlusDen;
+
+            var g1 = gcdI64(aNum, bDen);
+            aNum /= g1;
+            bDen /= g1;
+
+            var g2 = gcdI64(bNum, aDen);
+            bNum /= g2;
+            aDen /= g2;
+
+            const addNum = aNum * bNum;
+            const addDen = aDen * bDen;
 
             addFraction(deltaNum[v], deltaDen[v], addNum, addDen);
           }
