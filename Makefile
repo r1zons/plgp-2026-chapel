@@ -6,7 +6,7 @@ TARGET := $(BIN_DIR)/bc_compare
 
 MAIN_SRC := $(SRC_DIR)/Main.chpl
 
-.PHONY: all build run generate test test-brandes test-brandes-parallel clean
+.PHONY: all build run generate test test-brandes test-brandes-parallel test-partitioned-graph clean
 
 all: build
 
@@ -33,6 +33,8 @@ test:
 	./$(BIN_DIR)/test_brandes_bc
 	$(CHPL) $(TEST_DIR)/TestBrandesBCParallel.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_brandes_bc_parallel
 	./$(BIN_DIR)/test_brandes_bc_parallel
+	$(CHPL) $(TEST_DIR)/TestPartitionedGraph.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_graph
+	./$(BIN_DIR)/test_partitioned_graph
 
 clean:
 	rm -rf $(BIN_DIR)
@@ -43,3 +45,10 @@ test-brandes: $(BIN_DIR)
 	./$(BIN_DIR)/test_brandes_bc
 	$(CHPL) $(TEST_DIR)/TestBrandesBCParallel.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_brandes_bc_parallel
 	./$(BIN_DIR)/test_brandes_bc_parallel
+	$(CHPL) $(TEST_DIR)/TestPartitionedGraph.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_graph
+	./$(BIN_DIR)/test_partitioned_graph
+
+
+test-partitioned-graph: $(BIN_DIR)
+	$(CHPL) $(TEST_DIR)/TestPartitionedGraph.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_graph
+	./$(BIN_DIR)/test_partitioned_graph
