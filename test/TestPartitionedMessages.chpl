@@ -74,7 +74,7 @@ module TestPartitionedMessages {
 
     // Итерация по пустому буферу безопасна.
     var count = 0;
-    for _ in pm.relaxMessages(0) do
+    for m in pm.relaxMessages(0) do
       count += 1;
     assert(count == 0);
   }

@@ -24,18 +24,18 @@ module PartitionedMessages {
     var depDom: domain(1) = {0..-1};
     var depMsgs: [depDom] DependencyMessage;
 
-    proc clear() {
+    proc ref clear() {
       relaxDom = {0..-1};
       depDom = {0..-1};
     }
 
-    proc appendRelax(msg: RelaxMessage) {
+    proc ref appendRelax(msg: RelaxMessage) {
       const next = if relaxDom.size == 0 then 0 else relaxDom.high + 1;
       relaxDom = {0..next};
       relaxMsgs[next] = msg;
     }
 
-    proc appendDependency(msg: DependencyMessage) {
+    proc ref appendDependency(msg: DependencyMessage) {
       const next = if depDom.size == 0 then 0 else depDom.high + 1;
       depDom = {0..next};
       depMsgs[next] = msg;
@@ -61,13 +61,13 @@ module PartitionedMessages {
       this.partDom = {0..numParts-1};
     }
 
-    proc clearAll() {
+    proc ref clearAll() {
       for p in partDom do
         buffers[p].clear();
     }
 
-    proc appendRelax(destPart: int, targetVertex: int, distance: int,
-                     sigmaContribution: int(64)) {
+    proc ref appendRelax(destPart: int, targetVertex: int, distance: int,
+                         sigmaContribution: int(64)) {
       if destPart < 0 || destPart >= numParts then
         halt("appendRelax: destPart out of range: ", destPart);
 
@@ -78,7 +78,7 @@ module PartitionedMessages {
       buffers[destPart].appendRelax(msg);
     }
 
-    proc appendDependency(destPart: int, targetVertex: int, contribution: real) {
+    proc ref appendDependency(destPart: int, targetVertex: int, contribution: real) {
       if destPart < 0 || destPart >= numParts then
         halt("appendDependency: destPart out of range: ", destPart);
 
@@ -101,7 +101,7 @@ module PartitionedMessages {
     }
 
     // Для итерации по relax-сообщениям части.
-    iter relaxMessages(part: int) ref {
+    iter ref relaxMessages(part: int) ref {
       if part < 0 || part >= numParts then
         halt("relaxMessages: part out of range: ", part);
 
@@ -110,7 +110,7 @@ module PartitionedMessages {
     }
 
     // Для итерации по dependency-сообщениям части.
-    iter dependencyMessages(part: int) ref {
+    iter ref dependencyMessages(part: int) ref {
       if part < 0 || part >= numParts then
         halt("dependencyMessages: part out of range: ", part);
 
