@@ -7,6 +7,7 @@ module PartitionedBrandes {
   use GraphCSR;
   use PartitionedGraph;
   use PartitionedMessages;
+  use PartitionedState;
 
   record SingleSourceBFSResult {
     var vDom: domain(1) = {0..-1};
@@ -25,15 +26,10 @@ module PartitionedBrandes {
 
     const n = g.n;
 
-    // Состояние на вершину (robust для Chapel rectangular arrays).
-    var dist: [0..n-1] int = -1;
-    var sigma: [0..n-1] int(64) = 0:int(64);
-    var frontier: [0..n-1] bool = false;
-    var nextFrontier: [0..n-1] bool = false;
-
-    dist[source] = 0;
-    sigma[source] = 1:int(64);
-    frontier[source] = true;
+    // Working-state хранится по partition через PartitionedSourceState.
+    var st: PartitionedSourceState;
+    st.initFromPartitionedGraph(pg);
+    st.resetForSource(source);
 
     var level = 0;
     var msg = new PartitionedMessages(pg.numParts);
@@ -42,7 +38,7 @@ module PartitionedBrandes {
       var hasWork = false;
       for p in 0..pg.numParts-1 {
         for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) {
-          if frontier[v] {
+          if st.getFrontier(v) {
             hasWork = true;
             break;
           }
@@ -52,26 +48,29 @@ module PartitionedBrandes {
       if !hasWork then break;
 
       msg.clearAll();
-      nextFrontier = false;
+      for p in 0..pg.numParts-1 {
+        for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) do
+          st.setNextFrontier(v, false);
+      }
 
       // 1) Локальная обработка frontier и отправка межpart RELAX сообщений.
       for p in 0..pg.numParts-1 {
         for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) {
-          if !frontier[v] then
+          if !st.getFrontier(v) then
             continue;
-          const sigV = sigma[v];
+          const sigV = st.getSigma(v);
 
           for edgeIdx in g.rowPtr[v]..g.rowPtr[v+1]-1 {
             const w = g.colIdx[edgeIdx];
             const wp = pg.ownerOfVertex(w);
 
             if wp == p {
-              if dist[w] < 0 {
-                dist[w] = level + 1;
-                sigma[w] = sigV;
-                nextFrontier[w] = true;
-              } else if dist[w] == level + 1 {
-                sigma[w] += sigV;
+              if st.getDist(w) < 0 {
+                st.setDist(w, level + 1);
+                st.setSigma(w, sigV);
+                st.setNextFrontier(w, true);
+              } else if st.getDist(w) == level + 1 {
+                st.addSigma(w, sigV);
               }
             } else {
               // Межpartition обновление только через message buffer.
@@ -85,31 +84,26 @@ module PartitionedBrandes {
       for p in 0..pg.numParts-1 {
         for m in msg.relaxMessages(p) {
           const w = m.targetVertex;
-          if dist[w] < 0 {
-            dist[w] = m.distance;
-            sigma[w] = m.sigmaContribution;
-            nextFrontier[w] = true;
-          } else if dist[w] == m.distance {
-            sigma[w] += m.sigmaContribution;
+          if st.getDist(w) < 0 {
+            st.setDist(w, m.distance);
+            st.setSigma(w, m.sigmaContribution);
+            st.setNextFrontier(w, true);
+          } else if st.getDist(w) == m.distance {
+            st.addSigma(w, m.sigmaContribution);
           }
         }
       }
 
       // 3) Переход на следующий BFS-уровень.
-      frontier = nextFrontier;
+      st.swapOrMoveNextFrontierToFrontier();
       level += 1;
     }
 
     // Сборка глобальных dist/sigma для тестов.
     var res: SingleSourceBFSResult;
     res.vDom = {0..n-1};
-    res.dist = [i in res.vDom] -1;
-    res.sigma = [i in res.vDom] 0:int(64);
-
-    for v in 0..n-1 {
-      res.dist[v] = dist[v];
-      res.sigma[v] = sigma[v];
-    }
+    res.dist = st.gatherDist();
+    res.sigma = st.gatherSigma();
 
     return res;
   }
