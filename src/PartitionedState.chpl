@@ -179,39 +179,39 @@ module PartitionedState {
     }
 
     proc gatherDist(): [0..n-1] int {
-      var out: [0..n-1] int;
-      out = -1;
+      var result: [0..n-1] int;
+      result = -1;
       for p in partDom {
         for li in parts[p].localDom {
           const v = firstV[p] + li;
-          out[v] = parts[p].dist[li];
+          result[v] = parts[p].dist[li];
         }
       }
-      return out;
+      return result;
     }
 
     proc gatherSigma(): [0..n-1] int(64) {
-      var out: [0..n-1] int(64);
-      out = 0:int(64);
+      var result: [0..n-1] int(64);
+      result = 0:int(64);
       for p in partDom {
         for li in parts[p].localDom {
           const v = firstV[p] + li;
-          out[v] = parts[p].sigma[li];
+          result[v] = parts[p].sigma[li];
         }
       }
-      return out;
+      return result;
     }
 
     proc gatherDelta(): [0..n-1] real {
-      var out: [0..n-1] real;
-      out = 0.0;
+      var result: [0..n-1] real;
+      result = 0.0;
       for p in partDom {
         for li in parts[p].localDom {
           const v = firstV[p] + li;
-          out[v] = parts[p].delta[li];
+          result[v] = parts[p].delta[li];
         }
       }
-      return out;
+      return result;
     }
   }
 }
