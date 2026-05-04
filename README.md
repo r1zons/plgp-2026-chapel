@@ -148,6 +148,21 @@ make clean       # очистить bin/
 
 ## Partitioned Message-Passing Brandes: корректность и обмен сообщениями
 
+### Текущая реализация после refactor PartitionedState
+
+- Single-source traversal state хранится по partition:
+  - `dist`
+  - `sigma`
+  - `delta`
+  - `frontier`
+  - `nextFrontier`
+- Эти массивы лежат в локальном домене вершин partition, то есть дают `O(local_n)` состояния на partition.
+- Межpartition обновления моделируются буферами сообщений:
+  - `RelaxMessage` в forward BFS,
+  - `DependencyMessage` в backward dependency phase.
+- Реализация остаётся **single-process simulation** message passing.
+- Это пока **не** true multi-locale/cluster-distributed выполнение.
+
 ### Почему нельзя считать BC независимо по partition и просто суммировать
 
 Локальный BC внутри одной partition не учитывает кратчайшие пути, которые:
@@ -209,11 +224,23 @@ make clean       # очистить bin/
 Partitioned message-passing Brandes делит **вершины** между partition,
 с локальным состоянием по owned-вершинам и явными межpartition сообщениями.
 
+Итого:
+- `coforall` Brandes: split by sources + полноразмерные traversal arrays на задачу.
+- Partitioned Brandes: split by vertices/partitions + partition-local traversal arrays + сообщения через cut-edges.
+
 ### Сравнение памяти
 
 - Source-parallel (`coforall` по источникам): примерно `O(numTasks * n)` временного состояния.
 - Partitioned message-passing: примерно `O(local_n)` временного состояния на partition
   (плюс буферы сообщений на cut-edges).
+
+### Что остаётся глобальным для совместимости/сравнения
+
+- Глобальные `dist/sigma` собираются в single-source BFS тестовом API.
+- Глобальный `delta/contribution` собирается в single-source dependency тестовом API.
+- Глобальный `BC` остаётся публичным результирующим массивом.
+- В all-sources production path больше не создаётся `contrib[0..n-1]` на каждый источник:
+  накопление идёт в partition-local BC и глобальная сборка выполняется один раз в конце.
 
 ### Текущие ограничения
 
@@ -221,6 +248,8 @@ Partitioned message-passing Brandes делит **вершины** между par
 - Это ещё не полноценная multi-locale distributed реализация.
 - Communication overhead может быть высоким при большом числе cut-edges.
 - Простое block-разбиение по id вершины может быть неоптимальным для реальных графов.
+- Пока нет `Locales`/`on` placement.
+- Пока нет реальной межузловой коммуникации.
 
 ## Questions a teacher may ask
 
