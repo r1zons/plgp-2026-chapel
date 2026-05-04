@@ -31,13 +31,13 @@ module PartitionedMessages {
 
     proc appendRelax(msg: RelaxMessage) {
       const next = if relaxDom.size == 0 then 0 else relaxDom.high + 1;
-      relaxDom += next;
+      relaxDom = {0..next};
       relaxMsgs[next] = msg;
     }
 
     proc appendDependency(msg: DependencyMessage) {
       const next = if depDom.size == 0 then 0 else depDom.high + 1;
-      depDom += next;
+      depDom = {0..next};
       depMsgs[next] = msg;
     }
 
