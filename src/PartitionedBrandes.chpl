@@ -25,28 +25,15 @@ module PartitionedBrandes {
 
     const n = g.n;
 
-    // Локальные состояния по partition: dist/sigma/frontier только для owned-вершин.
-    var localDom: [0..pg.numParts-1] domain(1);
-    var localDist: [0..pg.numParts-1] [0..-1] int;
-    var localSigma: [0..pg.numParts-1] [0..-1] int(64);
-    var frontier: [0..pg.numParts-1] [0..-1] bool;
-    var nextFrontier: [0..pg.numParts-1] [0..-1] bool;
+    // Состояние на вершину (robust для Chapel rectangular arrays).
+    var dist: [0..n-1] int = -1;
+    var sigma: [0..n-1] int(64) = 0:int(64);
+    var frontier: [0..n-1] bool = false;
+    var nextFrontier: [0..n-1] bool = false;
 
-    for p in 0..pg.numParts-1 {
-      const nv = pg.numLocalVertices(p);
-      localDom[p] = {0..nv-1};
-
-      localDist[p] = [i in localDom[p]] -1;
-      localSigma[p] = [i in localDom[p]] 0:int(64);
-      frontier[p] = [i in localDom[p]] false;
-      nextFrontier[p] = [i in localDom[p]] false;
-    }
-
-    const sp = pg.ownerOfVertex(source);
-    const sLi = pg.localIndexOfVertex(source);
-    localDist[sp][sLi] = 0;
-    localSigma[sp][sLi] = 1:int(64);
-    frontier[sp][sLi] = true;
+    dist[source] = 0;
+    sigma[source] = 1:int(64);
+    frontier[source] = true;
 
     var level = 0;
     var msg = new PartitionedMessages(pg.numParts);
@@ -54,8 +41,8 @@ module PartitionedBrandes {
     while true {
       var hasWork = false;
       for p in 0..pg.numParts-1 {
-        for li in localDom[p] {
-          if frontier[p][li] {
+        for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) {
+          if frontier[v] {
             hasWork = true;
             break;
           }
@@ -65,31 +52,26 @@ module PartitionedBrandes {
       if !hasWork then break;
 
       msg.clearAll();
-      for p in 0..pg.numParts-1 do
-        for li in localDom[p] do
-          nextFrontier[p][li] = false;
+      nextFrontier = false;
 
       // 1) Локальная обработка frontier и отправка межpart RELAX сообщений.
       for p in 0..pg.numParts-1 {
-        for li in localDom[p] {
-          if !frontier[p][li] then
+        for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) {
+          if !frontier[v] then
             continue;
-
-          const v = pg.globalVertexOf(p, li);
-          const sigV = localSigma[p][li];
+          const sigV = sigma[v];
 
           for edgeIdx in g.rowPtr[v]..g.rowPtr[v+1]-1 {
             const w = g.colIdx[edgeIdx];
             const wp = pg.ownerOfVertex(w);
 
             if wp == p {
-              const wLi = pg.localIndexOfVertex(w);
-              if localDist[p][wLi] < 0 {
-                localDist[p][wLi] = level + 1;
-                localSigma[p][wLi] = sigV;
-                nextFrontier[p][wLi] = true;
-              } else if localDist[p][wLi] == level + 1 {
-                localSigma[p][wLi] += sigV;
+              if dist[w] < 0 {
+                dist[w] = level + 1;
+                sigma[w] = sigV;
+                nextFrontier[w] = true;
+              } else if dist[w] == level + 1 {
+                sigma[w] += sigV;
               }
             } else {
               // Межpartition обновление только через message buffer.
@@ -102,24 +84,19 @@ module PartitionedBrandes {
       // 2) Доставка и применение RELAX сообщений у владельца вершины.
       for p in 0..pg.numParts-1 {
         for m in msg.relaxMessages(p) {
-          const wLi = pg.localIndexOfVertex(m.targetVertex);
-
-          if localDist[p][wLi] < 0 {
-            localDist[p][wLi] = m.distance;
-            localSigma[p][wLi] = m.sigmaContribution;
-            nextFrontier[p][wLi] = true;
-          } else if localDist[p][wLi] == m.distance {
-            localSigma[p][wLi] += m.sigmaContribution;
+          const w = m.targetVertex;
+          if dist[w] < 0 {
+            dist[w] = m.distance;
+            sigma[w] = m.sigmaContribution;
+            nextFrontier[w] = true;
+          } else if dist[w] == m.distance {
+            sigma[w] += m.sigmaContribution;
           }
         }
       }
 
       // 3) Переход на следующий BFS-уровень.
-      for p in 0..pg.numParts-1 {
-        for li in localDom[p] {
-          frontier[p][li] = nextFrontier[p][li];
-        }
-      }
+      frontier = nextFrontier;
       level += 1;
     }
 
@@ -129,12 +106,9 @@ module PartitionedBrandes {
     res.dist = [i in res.vDom] -1;
     res.sigma = [i in res.vDom] 0:int(64);
 
-    for p in 0..pg.numParts-1 {
-      for li in localDom[p] {
-        const v = pg.globalVertexOf(p, li);
-        res.dist[v] = localDist[p][li];
-        res.sigma[v] = localSigma[p][li];
-      }
+    for v in 0..n-1 {
+      res.dist[v] = dist[v];
+      res.sigma[v] = sigma[v];
     }
 
     return res;
