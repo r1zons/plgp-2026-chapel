@@ -112,16 +112,13 @@ module PartitionedBrandes {
                                                   ref pg: PartitionedGraph,
                                                   source: int): [0..g.n-1] real {
     const n = g.n;
-    var dist: [0..n-1] int = -1;
-    var sigma: [0..n-1] int(64) = 0:int(64);
-    var delta: [0..n-1] real = 0.0;
-    var frontier: [0..n-1] bool = false;
-    var nextFrontier: [0..n-1] bool = false;
+    // Single-process simulated message passing:
+    // working state is partition-local via PartitionedSourceState.
+    var st: PartitionedSourceState;
+    st.initFromPartitionedGraph(pg);
+    st.resetForSource(source);
 
-    // Forward BFS локально по partition-состоянию (без промежуточного глобального массива).
-    dist[source] = 0;
-    sigma[source] = 1:int(64);
-    frontier[source] = true;
+    // Forward BFS по partition-состоянию.
 
     var level = 0;
     var maxDist = 0;
@@ -131,7 +128,7 @@ module PartitionedBrandes {
       var hasWork = false;
       for p in 0..pg.numParts-1 {
         for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) {
-          if frontier[v] {
+          if st.getFrontier(v) {
             hasWork = true;
             break;
           }
@@ -141,27 +138,30 @@ module PartitionedBrandes {
       if !hasWork then break;
 
       msg.clearAll();
-      nextFrontier = false;
+      for p in 0..pg.numParts-1 {
+        for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) do
+          st.setNextFrontier(v, false);
+      }
 
       for p in 0..pg.numParts-1 {
         for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) {
-          if !frontier[v] then
+          if !st.getFrontier(v) then
             continue;
-          const sigV = sigma[v];
+          const sigV = st.getSigma(v);
 
           for edgeIdx in g.rowPtr[v]..g.rowPtr[v+1]-1 {
             const w = g.colIdx[edgeIdx];
             const wp = pg.ownerOfVertex(w);
 
             if wp == p {
-              if dist[w] < 0 {
-                dist[w] = level + 1;
-                sigma[w] = sigV;
-                nextFrontier[w] = true;
+              if st.getDist(w) < 0 {
+                st.setDist(w, level + 1);
+                st.setSigma(w, sigV);
+                st.setNextFrontier(w, true);
                 if level + 1 > maxDist then
                   maxDist = level + 1;
-              } else if dist[w] == level + 1 {
-                sigma[w] += sigV;
+              } else if st.getDist(w) == level + 1 {
+                st.addSigma(w, sigV);
               }
             } else {
               msg.appendRelax(wp, w, level + 1, sigV);
@@ -173,19 +173,19 @@ module PartitionedBrandes {
       for p in 0..pg.numParts-1 {
         for m in msg.relaxMessages(p) {
           const w = m.targetVertex;
-          if dist[w] < 0 {
-            dist[w] = m.distance;
-            sigma[w] = m.sigmaContribution;
-            nextFrontier[w] = true;
+          if st.getDist(w) < 0 {
+            st.setDist(w, m.distance);
+            st.setSigma(w, m.sigmaContribution);
+            st.setNextFrontier(w, true);
             if m.distance > maxDist then
               maxDist = m.distance;
-          } else if dist[w] == m.distance {
-            sigma[w] += m.sigmaContribution;
+          } else if st.getDist(w) == m.distance {
+            st.addSigma(w, m.sigmaContribution);
           }
         }
       }
 
-      frontier = nextFrontier;
+      st.swapOrMoveNextFrontierToFrontier();
 
       level += 1;
     }
@@ -198,23 +198,23 @@ module PartitionedBrandes {
       // 1) Формируем вклады от w на уровень level к его предшественникам v.
       for p in 0..pg.numParts-1 {
         for w in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) {
-          if dist[w] != level then
+          if st.getDist(w) != level then
             continue;
-          const sigmaW = sigma[w];
+          const sigmaW = st.getSigma(w);
 
           if sigmaW == 0 then
             continue;
 
-          const factor = (1.0 + delta[w]) / sigmaW:real;
+          const factor = (1.0 + st.getDelta(w)) / sigmaW:real;
 
           for edgeIdx in g.rowPtr[w]..g.rowPtr[w+1]-1 {
             const v = g.colIdx[edgeIdx];
             const vp = pg.ownerOfVertex(v);
-            if dist[v] == level - 1 {
-              const contrib = sigma[v]:real * factor;
+            if st.getDist(v) == level - 1 {
+              const contrib = st.getSigma(v):real * factor;
 
               if vp == p {
-                delta[v] += contrib;
+                st.addDelta(v, contrib);
               } else {
                 msg.appendDependency(vp, v, contrib);
               }
@@ -227,17 +227,14 @@ module PartitionedBrandes {
       for p in 0..pg.numParts-1 {
         for m in msg.dependencyMessages(p) {
           const v = m.targetVertex;
-          delta[v] += m.contribution;
+          st.addDelta(v, m.contribution);
         }
       }
     }
 
     // Собираем вклад одного источника как BC-like contribution: delta[w] для w != source.
-    var contrib: [0..n-1] real;
-    contrib = 0.0;
-    for v in 0..n-1 do
-      if v != source then
-        contrib[v] = delta[v];
+    var contrib = st.gatherDelta();
+    contrib[source] = 0.0;
 
     return contrib;
   }
