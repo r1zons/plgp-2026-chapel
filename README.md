@@ -73,13 +73,14 @@
 - `--command=Generate|Run`
 - `--n=<число вершин>`
 - `--seed=<seed>`
+- `--partitionedParts=<int>` (для partitioned Brandes; `<=0` => безопасный default)
 
 Примеры:
 
 ```bash
 make build
 ./bin/bc_compare --command=Generate --n=7 --seed=42
-./bin/bc_compare --command=Run --n=100 --seed=42
+./bin/bc_compare --command=Run --n=100 --seed=42 --partitionedParts=2
 ```
 
 ## Как запускать через Makefile
@@ -115,16 +116,20 @@ make clean       # очистить bin/
 - `Naive time: ...`
 - `Brandes time: ...`
 - `Parallel Brandes time: ...`
+- `Partitioned Brandes time: ...`
+- `Partitioned parts: ...`
 - `Naive total: ...`
 - `Brandes total: ...`
 - `Parallel Brandes total: ...`
+- `Partitioned Brandes total: ...`
 - `Correctness check seq: PASS/FAIL`
 - `Correctness check par: PASS/FAIL`
+- `Correctness check partitioned: PASS/FAIL`
 
 Пример:
 
 ```bash
-./bin/bc_compare --command=Run --n=100 --seed=42
+./bin/bc_compare --command=Run --n=100 --seed=42 --partitionedParts=2
 ```
 
 
@@ -139,3 +144,104 @@ make clean       # очистить bin/
 ### Потенциальные узкие места по памяти
 
 Основной вклад в память даёт `localBC` на каждую задачу (размер `O(n)` на задачу), плюс временные массивы BFS/обратного прохода (`dist/sigma/delta/queue/stack`) также `O(n)` на задачу.
+
+
+## Partitioned Message-Passing Brandes: корректность и обмен сообщениями
+
+### Почему нельзя считать BC независимо по partition и просто суммировать
+
+Локальный BC внутри одной partition не учитывает кратчайшие пути, которые:
+- начинаются в одной partition,
+- проходят через вершины другой partition,
+- возвращают вклад зависимости обратно через границу разбиения.
+
+Поэтому простая схема «посчитать в каждой части отдельно и сложить» математически неверна:
+она теряет межpartition пути и ломает рекурренцию Brandes.
+
+### Почему межpartition кратчайшие пути требуют сообщений
+
+Если ребро `(u, v)` пересекает границу (`owner(u) != owner(v)`),
+то владелец `u` не должен напрямую менять состояние `v`.
+Обновление для `v` отправляется владельцу `v` как сообщение.
+Это сохраняет правило единственного владельца состояния вершины.
+
+### Как работают RELAX-сообщения (forward BFS)
+
+На уровне BFS `d` каждая partition обрабатывает frontier `dist=d`:
+- локальные соседи обновляются напрямую;
+- для межpartition соседа отправляется `RELAX(targetVertex, distance=d+1, sigmaContribution)`.
+
+Владелец `targetVertex` применяет сообщение:
+- если найдено меньшее расстояние — обновляет `dist` и `sigma`;
+- если расстояние то же (`d+1`) — добавляет вклад в `sigma`.
+
+### Как работают DEPENDENCY-сообщения (backward phase)
+
+В обратной фазе (по убыванию уровней) для предшественника `v` вершины `w` используется:
+
+`delta[v] += (sigma[v] / sigma[w]) * (1 + delta[w])`
+
+Если `v` и `w` в разных partition, вклад отправляется как
+`DEPENDENCY(targetVertex=v, contribution=...)` владельцу `v`.
+Только владелец `v` обновляет `delta[v]`.
+
+### Почему нужна синхронизация уровней BFS
+
+Без барьера между уровнями часть `RELAX`-сообщений уровня `d` может прийти после начала `d+1`.
+Это приводит к неверным `dist`/`sigma` (пропуски кратчайших путей или неверная мультипликативность путей).
+
+### Почему нужна синхронизация уровней backward
+
+`delta` на уровне `L-1` зависит от уже завершённых `delta` на уровне `L`.
+Если начать более ранний уровень до доставки всех `DEPENDENCY`-вкладов,
+рекурренция Brandes нарушается.
+
+### Почему это эквивалентно обычному Brandes
+
+Используются те же величины (`dist`, `sigma`, `delta`) и те же формулы обновления.
+Меняется только способ доставки межвершинных обновлений: локально напрямую,
+межpartition — через сообщения владельцам.
+При level-synchronous барьерах порядок вычислений эквивалентен обычному Brandes.
+
+### Отличие от текущего coforall block-source Brandes
+
+`BrandesBCParallel` делит **источники** между задачами и обычно держит крупные временные структуры на задачу.
+Partitioned message-passing Brandes делит **вершины** между partition,
+с локальным состоянием по owned-вершинам и явными межpartition сообщениями.
+
+### Сравнение памяти
+
+- Source-parallel (`coforall` по источникам): примерно `O(numTasks * n)` временного состояния.
+- Partitioned message-passing: примерно `O(local_n)` временного состояния на partition
+  (плюс буферы сообщений на cut-edges).
+
+### Текущие ограничения
+
+- Сейчас это simulation message passing в одном Chapel-процессе.
+- Это ещё не полноценная multi-locale distributed реализация.
+- Communication overhead может быть высоким при большом числе cut-edges.
+- Простое block-разбиение по id вершины может быть неоптимальным для реальных графов.
+
+## Questions a teacher may ask
+
+- **Why is this correct?**  
+  Потому что сохраняются те же инварианты и формулы Brandes, а сообщения лишь заменяют прямой доступ через границы partition.
+
+- **Why not just sum local BC values?**  
+  Локальные вычисления не видят межpartition кратчайшие пути и не передают корректные dependency-вклады через границы.
+
+- **What data is owned by each partition?**  
+  Локальные состояния своих вершин: `dist`, `sigma`, `delta`, frontier-структуры и локальные contribution-накопители.
+
+- **What messages are sent?**  
+  Вперёд: `RELAX(targetVertex, distance, sigmaContribution)`.  
+  Назад: `DEPENDENCY(targetVertex, contribution)`.
+
+- **Where is synchronization required?**  
+  Между уровнями forward BFS и между уровнями backward dependency phase.
+
+- **What is the main memory advantage?**  
+  Нет необходимости держать полноразмерные временные массивы на каждую задачу; состояние локализовано по partition.
+
+- **What is the main performance drawback?**  
+  Потери на коммуникации и барьерах, особенно при большом количестве межpartition рёбер.

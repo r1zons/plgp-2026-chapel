@@ -16,6 +16,7 @@ module Main {
   use NaiveBC;
   use BrandesBC;
   use BrandesBCParallel;
+  use PartitionedBrandes;
   use Compare;
   use Report;
 
@@ -23,6 +24,7 @@ module Main {
   config const n = 10;
   config const seed = 1;
   config const parTasks = 0;
+  config const partitionedParts = 0;
 
   private proc printFirstRealMismatches(ref base: [] real, ref other: [] real,
                                         eps: real, cmpTag: string,
@@ -80,11 +82,22 @@ module Main {
     var brandesPar = computeBrandesBCParallelReal(g, parTasks);
     const par1 = timeSinceEpoch().totalSeconds();
 
+    var parts = partitionedParts;
+    if parts <= 0 then
+      parts = if n >= 2 then 2 else 1;
+    if parts > n then
+      parts = n;
+
+    const pmsg0 = timeSinceEpoch().totalSeconds();
+    var brandesPartitioned = computePartitionedBrandesBCReal(g, parts);
+    const pmsg1 = timeSinceEpoch().totalSeconds();
+
     const eps = 1.0e-9;
     const okSeq = approximatelyEqual(naive, brandesSeq, eps);
     const okPar = approximatelyEqual(naive, brandesPar, eps);
+    const okPartitioned = approximatelyEqual(naive, brandesPartitioned, eps);
 
-    if !okSeq || !okPar then
+    if !okSeq || !okPar || !okPartitioned then
       writeln("\n=== Run: Mismatches ===");
 
     if !okSeq then
@@ -93,6 +106,9 @@ module Main {
     if !okPar then
       printFirstRealMismatches(naive, brandesPar, eps, "Naive vs Par", 5);
 
+    if !okPartitioned then
+      printFirstRealMismatches(naive, brandesPartitioned, eps, "Naive vs Partitioned", 5);
+
     var rep: RunReport;
     rep.n = n;
     rep.seed = seed;
@@ -100,11 +116,15 @@ module Main {
     rep.naiveSec = naive1 - naive0;
     rep.brandesSeqSec = seq1 - seq0;
     rep.brandesParSec = par1 - par0;
+    rep.brandesPartitionedSec = pmsg1 - pmsg0;
+    rep.partitionedParts = parts;
     rep.naiveTotalSec = (gen1 - gen0) + (naive1 - naive0);
     rep.brandesSeqTotalSec = (gen1 - gen0) + (seq1 - seq0);
     rep.brandesParTotalSec = (gen1 - gen0) + (par1 - par0);
+    rep.brandesPartitionedTotalSec = (gen1 - gen0) + (pmsg1 - pmsg0);
     rep.passedSeq = okSeq;
     rep.passedPar = okPar;
+    rep.passedPartitioned = okPartitioned;
 
     printRunReport(rep);
   }

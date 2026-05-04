@@ -235,3 +235,43 @@ Partitioned message-passing Brandes:
 4. Реализация backward level-synchronous с `DEPENDENCY` буферами.
 5. Проверка против Naive/Seq Brandes на малых и случайных графах.
 6. Интеграция в `Run` как экспериментального режима (после подтверждения корректности).
+
+
+## 16) Дополнительные пояснения для защиты/обсуждения
+
+### Почему local BC per partition недостаточен
+
+BC зависит от всех кратчайших путей в графе, а не только от подграфа partition.
+Если путь пересекает границу partition, его вклад в `sigma` и `delta` должен пройти через владельцев вершин на границе.
+Без этого итоговая центральность будет занижена/искажена.
+
+### Почему cross-part shortest paths требуют сообщений
+
+При модели единственного владельца состояния вершины только owner-part может менять `dist/sigma/delta` этой вершины.
+Значит межpartition обновления обязаны идти в виде сообщений (`RELAX` и `DEPENDENCY`),
+а не через прямой доступ к чужому локальному состоянию.
+
+### Questions a teacher may ask
+
+- **Why is this correct?**  
+  Потому что используются исходные уравнения Brandes и level-synchronous порядок,
+  а сообщения только реализуют доставку межpartition обновлений к владельцам.
+
+- **Why not just sum local BC values?**  
+  Это игнорирует межpartition кратчайшие пути и dependency-вклады через границы.
+
+- **What data is owned by each partition?**  
+  `dist/sigma/delta` и frontier для owned-вершин, плюс локальные буферы входящих сообщений.
+
+- **What messages are sent?**  
+  `RELAX(targetVertex, distance, sigmaContribution)` в forward-фазе,
+  `DEPENDENCY(targetVertex, contribution)` в backward-фазе.
+
+- **Where is synchronization required?**  
+  Между уровнями BFS и между уровнями backward dependency.
+
+- **What is the main memory advantage?**  
+  Переход от `O(numTasks * n)` временных структур к `O(local_n)` на partition (+ buffers).
+
+- **What is the main performance drawback?**  
+  Коммуникации и барьеры, особенно при большом числе cut-edges.
