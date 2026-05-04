@@ -196,8 +196,9 @@ module PartitionedBrandes {
       level += 1;
     }
 
-    // Уровни в обратном порядке: maxDist..1 (source имеет dist=0).
-    for level in maxDist..1 by -1 {
+    // Chapel countdown idiom: use 1..maxDist by -1 (not maxDist..1 by -1).
+    // Source has dist=0, so backward dependency levels are maxDist..1.
+    for level in 1..maxDist by -1 {
       msg.clearAll();
 
       // 1) Формируем вклады от w на уровень level к его предшественникам v.
