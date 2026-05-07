@@ -4,6 +4,7 @@
   только forward BFS-фаза для одного источника.
 */
 module PartitionedBrandes {
+  use Time;
   use GraphCSR;
   use PartitionedGraph;
   use PartitionedMessages;
@@ -13,6 +14,24 @@ module PartitionedBrandes {
     var vDom: domain(1) = {0..-1};
     var dist: [vDom] int;
     var sigma: [vDom] int(64);
+  }
+
+  record PartitionedRunMetrics {
+    var relaxMessagesSent: int(64) = 0;
+    var dependencyMessagesSent: int(64) = 0;
+    var cutEdgeTraversals: int(64) = 0;
+    var bfsLevelsProcessed: int(64) = 0;
+    var backwardLevelsProcessed: int(64) = 0;
+    var forwardBfsSec: real = 0.0;
+    var backwardSec: real = 0.0;
+    var messageSec: real = 0.0;
+    var gatherSec: real = 0.0;
+  }
+
+  var _lastMetrics: PartitionedRunMetrics;
+
+  proc getLastPartitionedRunMetrics(): PartitionedRunMetrics {
+    return _lastMetrics;
   }
 
   proc computePartitionedSingleSourceBFS(ref g: CSRGraph,
@@ -272,13 +291,18 @@ module PartitionedBrandes {
           if hasWork then break;
         }
         if !hasWork then break;
+        metrics.bfsLevelsProcessed += 1;
 
+        var msgT0 = timeSinceEpoch().totalSeconds();
         msg.clearAll();
         for p in 0..pg.numParts-1 {
           for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) do
             st.setNextFrontier(v, false);
         }
+        var msgT1 = timeSinceEpoch().totalSeconds();
+        metrics.messageSec += (msgT1 - msgT0);
 
+        var fwdT0 = timeSinceEpoch().totalSeconds();
         for p in 0..pg.numParts-1 {
           for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) {
             if !st.getFrontier(v) then
@@ -300,12 +324,20 @@ module PartitionedBrandes {
                   st.addSigma(w, sigV);
                 }
               } else {
+                metrics.cutEdgeTraversals += 1;
+                var t0 = timeSinceEpoch().totalSeconds();
                 msg.appendRelax(wp, w, level + 1, sigV);
+                var t1 = timeSinceEpoch().totalSeconds();
+                metrics.messageSec += (t1 - t0);
+                metrics.relaxMessagesSent += 1;
               }
             }
           }
         }
+        var fwdT1 = timeSinceEpoch().totalSeconds();
+        metrics.forwardBfsSec += (fwdT1 - fwdT0);
 
+        msgT0 = timeSinceEpoch().totalSeconds();
         for p in 0..pg.numParts-1 {
           for m in msg.relaxMessages(p) {
             const w = m.targetVertex;
@@ -320,12 +352,19 @@ module PartitionedBrandes {
             }
           }
         }
+        msgT1 = timeSinceEpoch().totalSeconds();
+        metrics.messageSec += (msgT1 - msgT0);
         st.swapOrMoveNextFrontierToFrontier();
         level += 1;
       }
 
       for level in 1..maxDist by -1 {
+        metrics.backwardLevelsProcessed += 1;
+        var bwdT0 = timeSinceEpoch().totalSeconds();
+        var msgT0 = timeSinceEpoch().totalSeconds();
         msg.clearAll();
+        var msgT1 = timeSinceEpoch().totalSeconds();
+        metrics.messageSec += (msgT1 - msgT0);
         for p in 0..pg.numParts-1 {
           for w in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) {
             if st.getDist(w) != level then
@@ -343,16 +382,26 @@ module PartitionedBrandes {
                 if vp == p {
                   st.addDelta(v, contrib);
                 } else {
+                  metrics.cutEdgeTraversals += 1;
+                  var t0 = timeSinceEpoch().totalSeconds();
                   msg.appendDependency(vp, v, contrib);
+                  var t1 = timeSinceEpoch().totalSeconds();
+                  metrics.messageSec += (t1 - t0);
+                  metrics.dependencyMessagesSent += 1;
                 }
               }
             }
           }
         }
+        msgT0 = timeSinceEpoch().totalSeconds();
         for p in 0..pg.numParts-1 {
           for m in msg.dependencyMessages(p) do
             st.addDelta(m.targetVertex, m.contribution);
         }
+        msgT1 = timeSinceEpoch().totalSeconds();
+        metrics.messageSec += (msgT1 - msgT0);
+        var bwdT1 = timeSinceEpoch().totalSeconds();
+        metrics.backwardSec += (bwdT1 - bwdT0);
       }
 
       // Accumulate into per-part local BC storage.
@@ -373,14 +422,19 @@ module PartitionedBrandes {
     }
 
     // Gather global BC once at the end from partition-local storage.
+    const gather0 = timeSinceEpoch().totalSeconds();
     bc = bcLocal.gatherDelta();
+    const gather1 = timeSinceEpoch().totalSeconds();
+    metrics.gatherSec = gather1 - gather0;
 
     // Поправка для неориентированного графа.
     for v in 0..n-1 do
       bc[v] /= 2.0;
 
+    _lastMetrics = metrics;
     return bc;
   }
 
 
 }
+    var metrics: PartitionedRunMetrics;

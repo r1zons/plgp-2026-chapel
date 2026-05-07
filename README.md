@@ -97,7 +97,8 @@ make clean       # очистить bin/
 Также можно запустить pipeline:
 
 ```bash
-./scripts/pipeline.sh 100 42
+./scripts/pipeline.sh 100 42 correctness 16
+./scripts/pipeline.sh 1000 42 benchmark 16
 ```
 
 ## Совместимость
