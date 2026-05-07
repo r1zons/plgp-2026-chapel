@@ -12,11 +12,14 @@
 */
 module GraphGenerator {
   use Random;
+  use Math;
   use GraphCSR;
 
-  // Целевая доля от максимально возможного числа неориентированных рёбер.
-  // На этом этапе оставляем константой (не выносим в CLI).
-  config const defaultEdgeDensity: real = 0.20;
+  // Новая default-модель: sparse граф через целевую среднюю степень.
+  config const avgDegree: int = 16;
+  // Старую density-модель оставляем только как явный opt-in.
+  // Если edgeDensity >= 0, используется именно она.
+  config const edgeDensity: real = -1.0;
 
   // Нормализуем неориентированное ребро так, чтобы u <= v.
   private proc normalizeEdge(u: int, v: int): 2*int {
@@ -130,11 +133,16 @@ module GraphGenerator {
         halt("Internal error: failed to add tree edge");
     }
 
-    // 2) Дополняем случайными рёбрами до целевой плотности.
     const maxEdgesUndirected = (n * (n - 1)) / 2;
     const minEdgesUndirected = n - 1;
-
-    var targetEdgesUndirected = (defaultEdgeDensity * maxEdgesUndirected:real):int;
+    // 2) Дополняем случайными рёбрами до целевого числа.
+    var targetEdgesUndirected: int;
+    if edgeDensity >= 0.0 {
+      targetEdgesUndirected = (edgeDensity * maxEdgesUndirected:real):int;
+    } else {
+      const rawTarget = (n:real * avgDegree:real) / 2.0;
+      targetEdgesUndirected = round(rawTarget):int;
+    }
     if targetEdgesUndirected < minEdgesUndirected then
       targetEdgesUndirected = minEdgesUndirected;
     if targetEdgesUndirected > maxEdgesUndirected then

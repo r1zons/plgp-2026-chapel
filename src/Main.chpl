@@ -59,6 +59,17 @@ module Main {
     writeln("\n=== Generate: Summary ===");
     writeln("Graph size: ", n);
     writeln("Seed: ", seed);
+    const undirectedEdges = g.numDirectedEdges() / 2;
+    const actualAvgDegree = if n > 0 then (2.0 * undirectedEdges:real) / n:real else 0.0;
+    const model = if edgeDensity >= 0.0 then "density-opt-in" else "sparse";
+    const targetAvgDegree = if edgeDensity >= 0.0 then
+      (2.0 * (edgeDensity * ((n * (n - 1)) / 2):real)) / (if n > 0 then n:real else 1.0)
+      else avgDegree:real;
+    writeln("Graph model: ", model);
+    writeln("Target avg degree: ", targetAvgDegree);
+    writeln("Actual avg degree: ", actualAvgDegree);
+    writeln("Undirected edges: ", undirectedEdges);
+    writeln("Directed edges: ", g.numDirectedEdges());
     writeln("Generation time: ", t1 - t0);
   }
 

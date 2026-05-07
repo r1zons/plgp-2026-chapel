@@ -6,7 +6,7 @@ TARGET := $(BIN_DIR)/bc_compare
 
 MAIN_SRC := $(SRC_DIR)/Main.chpl
 
-.PHONY: all build run generate test test-brandes test-brandes-parallel test-partitioned-state test-partitioned-graph test-partitioned-messages test-partitioned-bfs test-partitioned-brandes clean
+.PHONY: all build run generate test test-generator test-brandes test-brandes-parallel test-partitioned-state test-partitioned-graph test-partitioned-messages test-partitioned-bfs test-partitioned-brandes clean
 
 all: build
 
@@ -97,3 +97,7 @@ test-partitioned-brandes: $(BIN_DIR)
 test-partitioned-state: $(BIN_DIR)
 	$(CHPL) $(TEST_DIR)/TestPartitionedState.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_state
 	./$(BIN_DIR)/test_partitioned_state
+
+test-generator: $(BIN_DIR)
+	$(CHPL) $(TEST_DIR)/TestGraphGenerator.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_generator
+	./$(BIN_DIR)/test_generator

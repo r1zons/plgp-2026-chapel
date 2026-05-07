@@ -90,7 +90,18 @@ module TestGraphGenerator {
       assert(visited[v]);
   }
 
-  private proc runCase(n: int, seed: int) {
+  private proc expectedTargetEdges(n: int, avgD: int): int {
+    if n <= 1 then
+      return 0;
+    const maxEdges = (n * (n - 1)) / 2;
+    const minEdges = n - 1;
+    var target = ((n * avgD) + 1) / 2; // round(n*avgD/2)
+    if target < minEdges then target = minEdges;
+    if target > maxEdges then target = maxEdges;
+    return target;
+  }
+
+  private proc runCase(n: int, seed: int, avgD: int = 16) {
     var g = generateConnectedRandomGraph(n, seed);
 
     assert(g.n == n);
@@ -98,12 +109,17 @@ module TestGraphGenerator {
     assertNoSelfLoops(g);
     assertNoUndirectedDuplicates(g);
     assertConnected(g);
+
+    const undirectedEdges = g.numDirectedEdges() / 2;
+    const targetEdges = expectedTargetEdges(n, avgD);
+    const tol = max(2, (targetEdges * 10) / 100);
+    assert(abs(undirectedEdges - targetEdges) <= tol);
   }
 
   proc main() {
-    // Требуемые размеры из постановки.
-    runCase(5, 101);
-    runCase(7, 202);
+    runCase(5, 101, 16);
+    runCase(100, 202, 16);
+    runCase(1000, 303, 16);
 
     writeln("TestGraphGenerator: PASS");
   }
