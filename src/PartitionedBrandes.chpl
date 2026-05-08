@@ -435,6 +435,4 @@ module PartitionedBrandes {
     return bc;
   }
 
-
 }
-    var metrics: PartitionedRunMetrics;
