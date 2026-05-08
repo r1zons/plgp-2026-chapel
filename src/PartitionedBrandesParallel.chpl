@@ -57,7 +57,6 @@ module PartitionedBrandesParallel {
                   st.setDistLocal(p, wLi, level + 1);
                   st.setSigmaLocal(p, wLi, sigV);
                   st.setNextFrontierLocal(p, wLi, true);
-                  if level + 1 > maxDist then maxDist = level + 1;
                 } else if st.getDistLocal(p, wLi) == level + 1 {
                   st.addSigmaLocal(p, wLi, sigV);
                 }
@@ -75,12 +74,20 @@ module PartitionedBrandesParallel {
               st.setDistLocal(dst, wLi, m.distance);
               st.setSigmaLocal(dst, wLi, m.sigmaContribution);
               st.setNextFrontierLocal(dst, wLi, true);
-              if m.distance > maxDist then maxDist = m.distance;
             } else if st.getDistLocal(dst, wLi) == m.distance {
               st.addSigmaLocal(dst, wLi, m.sigmaContribution);
             }
           }
         }
+
+        // Обновляем maxDist после завершения параллельного уровня.
+        for p in 0..pg.numParts-1 do
+          for li in st.parts[p].localDom do
+            if st.getNextFrontierLocal(p, li) {
+              const d = st.getDistLocal(p, li);
+              if d > maxDist then
+                maxDist = d;
+            }
 
         st.swapOrMoveNextFrontierToFrontier();
         level += 1;

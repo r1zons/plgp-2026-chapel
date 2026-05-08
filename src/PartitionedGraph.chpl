@@ -70,7 +70,7 @@ module PartitionedGraph {
     }
   }
 
-  proc buildPartitionedGraph(ref g: CSRGraph, numParts: int): PartitionedGraph {
+  proc buildPartitionedGraph(const ref g: CSRGraph, numParts: int): PartitionedGraph {
     if numParts <= 0 then
       halt("buildPartitionedGraph: numParts must be > 0");
 
