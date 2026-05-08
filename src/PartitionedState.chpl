@@ -160,6 +160,46 @@ module PartitionedState {
       parts[p].nextFrontier[li] = value;
     }
 
+    proc getDistLocal(part: int, localIndex: int): int {
+      return parts[part].dist[localIndex];
+    }
+
+    proc ref setDistLocal(part: int, localIndex: int, value: int) {
+      parts[part].dist[localIndex] = value;
+    }
+
+    proc getSigmaLocal(part: int, localIndex: int): int(64) {
+      return parts[part].sigma[localIndex];
+    }
+
+    proc ref setSigmaLocal(part: int, localIndex: int, value: int(64)) {
+      parts[part].sigma[localIndex] = value;
+    }
+
+    proc ref addSigmaLocal(part: int, localIndex: int, value: int(64)) {
+      parts[part].sigma[localIndex] += value;
+    }
+
+    proc getDeltaLocal(part: int, localIndex: int): real {
+      return parts[part].delta[localIndex];
+    }
+
+    proc ref addDeltaLocal(part: int, localIndex: int, value: real) {
+      parts[part].delta[localIndex] += value;
+    }
+
+    proc getFrontierLocal(part: int, localIndex: int): bool {
+      return parts[part].frontier[localIndex];
+    }
+
+    proc ref setFrontierLocal(part: int, localIndex: int, value: bool) {
+      parts[part].frontier[localIndex] = value;
+    }
+
+    proc ref setNextFrontierLocal(part: int, localIndex: int, value: bool) {
+      parts[part].nextFrontier[localIndex] = value;
+    }
+
     proc ref clearFrontiers() {
       for p in partDom {
         for li in parts[p].localDom {

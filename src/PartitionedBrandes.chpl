@@ -56,8 +56,8 @@ module PartitionedBrandes {
     while true {
       var hasWork = false;
       for p in 0..pg.numParts-1 {
-        for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) {
-          if st.getFrontier(v) {
+        for li in st.parts[p].localDom {
+          if st.getFrontierLocal(p, li) {
             hasWork = true;
             break;
           }
@@ -68,28 +68,30 @@ module PartitionedBrandes {
 
       msg.clearAll();
       for p in 0..pg.numParts-1 {
-        for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) do
-          st.setNextFrontier(v, false);
+        for li in st.parts[p].localDom do
+          st.setNextFrontierLocal(p, li, false);
       }
 
       // 1) Локальная обработка frontier и отправка межpart RELAX сообщений.
       for p in 0..pg.numParts-1 {
-        for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) {
-          if !st.getFrontier(v) then
+        for li in st.parts[p].localDom {
+          if !st.getFrontierLocal(p, li) then
             continue;
-          const sigV = st.getSigma(v);
+          const v = pg.firstVertexOfPart(p) + li;
+          const sigV = st.getSigmaLocal(p, li);
 
           for edgeIdx in g.rowPtr[v]..g.rowPtr[v+1]-1 {
             const w = g.colIdx[edgeIdx];
             const wp = pg.ownerOfVertex(w);
 
             if wp == p {
-              if st.getDist(w) < 0 {
-                st.setDist(w, level + 1);
-                st.setSigma(w, sigV);
-                st.setNextFrontier(w, true);
-              } else if st.getDist(w) == level + 1 {
-                st.addSigma(w, sigV);
+              const wLi = pg.localIndexOfVertex(w);
+              if st.getDistLocal(p, wLi) < 0 {
+                st.setDistLocal(p, wLi, level + 1);
+                st.setSigmaLocal(p, wLi, sigV);
+                st.setNextFrontierLocal(p, wLi, true);
+              } else if st.getDistLocal(p, wLi) == level + 1 {
+                st.addSigmaLocal(p, wLi, sigV);
               }
             } else {
               // Межpartition обновление только через message buffer.
@@ -146,8 +148,8 @@ module PartitionedBrandes {
     while true {
       var hasWork = false;
       for p in 0..pg.numParts-1 {
-        for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) {
-          if st.getFrontier(v) {
+        for li in st.parts[p].localDom {
+          if st.getFrontierLocal(p, li) {
             hasWork = true;
             break;
           }
@@ -158,29 +160,31 @@ module PartitionedBrandes {
 
       msg.clearAll();
       for p in 0..pg.numParts-1 {
-        for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) do
-          st.setNextFrontier(v, false);
+        for li in st.parts[p].localDom do
+          st.setNextFrontierLocal(p, li, false);
       }
 
       for p in 0..pg.numParts-1 {
-        for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) {
-          if !st.getFrontier(v) then
+        for li in st.parts[p].localDom {
+          if !st.getFrontierLocal(p, li) then
             continue;
-          const sigV = st.getSigma(v);
+          const v = pg.firstVertexOfPart(p) + li;
+          const sigV = st.getSigmaLocal(p, li);
 
           for edgeIdx in g.rowPtr[v]..g.rowPtr[v+1]-1 {
             const w = g.colIdx[edgeIdx];
             const wp = pg.ownerOfVertex(w);
 
             if wp == p {
-              if st.getDist(w) < 0 {
-                st.setDist(w, level + 1);
-                st.setSigma(w, sigV);
-                st.setNextFrontier(w, true);
+              const wLi = pg.localIndexOfVertex(w);
+              if st.getDistLocal(p, wLi) < 0 {
+                st.setDistLocal(p, wLi, level + 1);
+                st.setSigmaLocal(p, wLi, sigV);
+                st.setNextFrontierLocal(p, wLi, true);
                 if level + 1 > maxDist then
                   maxDist = level + 1;
-              } else if st.getDist(w) == level + 1 {
-                st.addSigma(w, sigV);
+              } else if st.getDistLocal(p, wLi) == level + 1 {
+                st.addSigmaLocal(p, wLi, sigV);
               }
             } else {
               msg.appendRelax(wp, w, level + 1, sigV);
@@ -283,8 +287,8 @@ module PartitionedBrandes {
       while true {
         var hasWork = false;
         for p in 0..pg.numParts-1 {
-          for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) {
-            if st.getFrontier(v) {
+          for li in st.parts[p].localDom {
+            if st.getFrontierLocal(p, li) {
               hasWork = true;
               break;
             }
@@ -297,32 +301,34 @@ module PartitionedBrandes {
         var msgT0 = timeSinceEpoch().totalSeconds();
         msg.clearAll();
         for p in 0..pg.numParts-1 {
-          for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) do
-            st.setNextFrontier(v, false);
+          for li in st.parts[p].localDom do
+            st.setNextFrontierLocal(p, li, false);
         }
         var msgT1 = timeSinceEpoch().totalSeconds();
         metrics.messageSec += (msgT1 - msgT0);
 
         var fwdT0 = timeSinceEpoch().totalSeconds();
         for p in 0..pg.numParts-1 {
-          for v in pg.firstVertexOfPart(p)..pg.lastVertexOfPart(p) {
-            if !st.getFrontier(v) then
+          for li in st.parts[p].localDom {
+            if !st.getFrontierLocal(p, li) then
               continue;
-            const sigV = st.getSigma(v);
+            const v = pg.firstVertexOfPart(p) + li;
+            const sigV = st.getSigmaLocal(p, li);
 
             for edgeIdx in g.rowPtr[v]..g.rowPtr[v+1]-1 {
               const w = g.colIdx[edgeIdx];
               const wp = pg.ownerOfVertex(w);
 
               if wp == p {
-                if st.getDist(w) < 0 {
-                  st.setDist(w, level + 1);
-                  st.setSigma(w, sigV);
-                  st.setNextFrontier(w, true);
+                const wLi = pg.localIndexOfVertex(w);
+                if st.getDistLocal(p, wLi) < 0 {
+                  st.setDistLocal(p, wLi, level + 1);
+                  st.setSigmaLocal(p, wLi, sigV);
+                  st.setNextFrontierLocal(p, wLi, true);
                   if level + 1 > maxDist then
                     maxDist = level + 1;
-                } else if st.getDist(w) == level + 1 {
-                  st.addSigma(w, sigV);
+                } else if st.getDistLocal(p, wLi) == level + 1 {
+                  st.addSigmaLocal(p, wLi, sigV);
                 }
               } else {
                 metrics.cutEdgeTraversals += 1;
