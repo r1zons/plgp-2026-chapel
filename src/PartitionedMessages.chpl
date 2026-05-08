@@ -112,4 +112,80 @@ module PartitionedMessages {
         yield m;
     }
   }
+
+  // 2D буферы для parallel partition execution:
+  // row = fromPart (single writer), col = toPart.
+  record PartitionedMessagesParallel {
+    var numParts: int;
+    var partDom: domain(1) = {0..-1};
+    var matrixDom: domain(2) = {0..-1, 0..-1};
+    var relaxOut: [matrixDom] PartMessageBuffer;
+    var depOut: [matrixDom] PartMessageBuffer;
+
+    proc init(numParts: int) {
+      this.numParts = numParts;
+      this.partDom = {0..numParts-1};
+      this.matrixDom = {0..numParts-1, 0..numParts-1};
+    }
+
+    proc ref clearAll() {
+      for src in partDom do
+        for dst in partDom {
+          relaxOut[src, dst].clear();
+          depOut[src, dst].clear();
+        }
+    }
+
+    proc ref appendRelax(fromPart: int, toPart: int,
+                         targetVertex: int, distance: int,
+                         sigmaContribution: int(64)) {
+      if fromPart < 0 || fromPart >= numParts then
+        halt("appendRelax(par): fromPart out of range: ", fromPart);
+      if toPart < 0 || toPart >= numParts then
+        halt("appendRelax(par): toPart out of range: ", toPart);
+
+      var msg: RelaxMessage;
+      msg.targetVertex = targetVertex;
+      msg.distance = distance;
+      msg.sigmaContribution = sigmaContribution;
+      relaxOut[fromPart, toPart].appendRelax(msg);
+    }
+
+    proc ref appendDependency(fromPart: int, toPart: int,
+                              targetVertex: int, contribution: real) {
+      if fromPart < 0 || fromPart >= numParts then
+        halt("appendDependency(par): fromPart out of range: ", fromPart);
+      if toPart < 0 || toPart >= numParts then
+        halt("appendDependency(par): toPart out of range: ", toPart);
+
+      var msg: DependencyMessage;
+      msg.targetVertex = targetVertex;
+      msg.contribution = contribution;
+      depOut[fromPart, toPart].appendDependency(msg);
+    }
+
+    proc numRelax(fromPart: int, toPart: int): int {
+      return relaxOut[fromPart, toPart].numRelax();
+    }
+
+    proc numDependency(fromPart: int, toPart: int): int {
+      return depOut[fromPart, toPart].numDependency();
+    }
+
+    iter relaxMessagesTo(dstPart: int) {
+      if dstPart < 0 || dstPart >= numParts then
+        halt("relaxMessagesTo: dstPart out of range: ", dstPart);
+      for src in partDom do
+        for m in relaxOut[src, dstPart].relaxMsgs do
+          yield m;
+    }
+
+    iter dependencyMessagesTo(dstPart: int) {
+      if dstPart < 0 || dstPart >= numParts then
+        halt("dependencyMessagesTo: dstPart out of range: ", dstPart);
+      for src in partDom do
+        for m in depOut[src, dstPart].depMsgs do
+          yield m;
+    }
+  }
 }

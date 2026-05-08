@@ -6,7 +6,7 @@ TARGET := $(BIN_DIR)/bc_compare
 
 MAIN_SRC := $(SRC_DIR)/Main.chpl
 
-.PHONY: all build run generate test test-generator test-brandes test-brandes-parallel test-partitioned-state test-partitioned-graph test-partitioned-messages test-partitioned-bfs test-partitioned-brandes clean
+.PHONY: all build run generate test test-generator test-brandes test-brandes-parallel test-partitioned-state test-partitioned-graph test-partitioned-messages test-partitioned-bfs test-partitioned-brandes test-partitioned-brandes-parallel clean
 
 all: build
 
@@ -37,10 +37,14 @@ test:
 	./$(BIN_DIR)/test_partitioned_graph
 	$(CHPL) $(TEST_DIR)/TestPartitionedMessages.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_messages
 	./$(BIN_DIR)/test_partitioned_messages
+	$(CHPL) $(TEST_DIR)/TestPartitionedMessagesParallel.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_messages_parallel
+	./$(BIN_DIR)/test_partitioned_messages_parallel
 	$(CHPL) $(TEST_DIR)/TestPartitionedBFS.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_bfs
 	./$(BIN_DIR)/test_partitioned_bfs
 	$(CHPL) $(TEST_DIR)/TestPartitionedBrandes.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_brandes
 	./$(BIN_DIR)/test_partitioned_brandes
+	$(CHPL) $(TEST_DIR)/TestPartitionedBrandesParallel.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_brandes_parallel
+	./$(BIN_DIR)/test_partitioned_brandes_parallel
 
 clean:
 	rm -rf $(BIN_DIR)
@@ -55,10 +59,14 @@ test-brandes: $(BIN_DIR)
 	./$(BIN_DIR)/test_partitioned_graph
 	$(CHPL) $(TEST_DIR)/TestPartitionedMessages.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_messages
 	./$(BIN_DIR)/test_partitioned_messages
+	$(CHPL) $(TEST_DIR)/TestPartitionedMessagesParallel.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_messages_parallel
+	./$(BIN_DIR)/test_partitioned_messages_parallel
 	$(CHPL) $(TEST_DIR)/TestPartitionedBFS.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_bfs
 	./$(BIN_DIR)/test_partitioned_bfs
 	$(CHPL) $(TEST_DIR)/TestPartitionedBrandes.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_brandes
 	./$(BIN_DIR)/test_partitioned_brandes
+	$(CHPL) $(TEST_DIR)/TestPartitionedBrandesParallel.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_brandes_parallel
+	./$(BIN_DIR)/test_partitioned_brandes_parallel
 
 
 test-partitioned-graph: $(BIN_DIR)
@@ -68,6 +76,8 @@ test-partitioned-graph: $(BIN_DIR)
 	./$(BIN_DIR)/test_partitioned_graph
 	$(CHPL) $(TEST_DIR)/TestPartitionedMessages.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_messages
 	./$(BIN_DIR)/test_partitioned_messages
+	$(CHPL) $(TEST_DIR)/TestPartitionedMessagesParallel.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_messages_parallel
+	./$(BIN_DIR)/test_partitioned_messages_parallel
 	$(CHPL) $(TEST_DIR)/TestPartitionedBFS.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_bfs
 	./$(BIN_DIR)/test_partitioned_bfs
 	$(CHPL) $(TEST_DIR)/TestPartitionedBrandes.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_brandes
@@ -77,6 +87,8 @@ test-partitioned-graph: $(BIN_DIR)
 test-partitioned-messages: $(BIN_DIR)
 	$(CHPL) $(TEST_DIR)/TestPartitionedMessages.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_messages
 	./$(BIN_DIR)/test_partitioned_messages
+	$(CHPL) $(TEST_DIR)/TestPartitionedMessagesParallel.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_messages_parallel
+	./$(BIN_DIR)/test_partitioned_messages_parallel
 	$(CHPL) $(TEST_DIR)/TestPartitionedBFS.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_bfs
 	./$(BIN_DIR)/test_partitioned_bfs
 	$(CHPL) $(TEST_DIR)/TestPartitionedBrandes.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_brandes
@@ -93,6 +105,12 @@ test-partitioned-bfs: $(BIN_DIR)
 test-partitioned-brandes: $(BIN_DIR)
 	$(CHPL) $(TEST_DIR)/TestPartitionedBrandes.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_brandes
 	./$(BIN_DIR)/test_partitioned_brandes
+	$(CHPL) $(TEST_DIR)/TestPartitionedBrandesParallel.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_brandes_parallel
+	./$(BIN_DIR)/test_partitioned_brandes_parallel
+
+test-partitioned-brandes-parallel: $(BIN_DIR)
+	$(CHPL) $(TEST_DIR)/TestPartitionedBrandesParallel.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_brandes_parallel
+	./$(BIN_DIR)/test_partitioned_brandes_parallel
 
 test-partitioned-state: $(BIN_DIR)
 	$(CHPL) $(TEST_DIR)/TestPartitionedState.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_partitioned_state
