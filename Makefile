@@ -22,7 +22,7 @@ generate: build
 run: build
 	./$(TARGET) --command=Run --n=10 --seed=1
 
-test:
+test: $(BIN_DIR)
 	$(CHPL) $(TEST_DIR)/TestCompare.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_compare
 	./$(BIN_DIR)/test_compare
 	$(CHPL) $(TEST_DIR)/TestGraphGenerator.chpl -M $(SRC_DIR) -o $(BIN_DIR)/test_generator
