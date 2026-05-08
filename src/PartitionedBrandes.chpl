@@ -261,6 +261,7 @@ module PartitionedBrandes {
   proc computePartitionedBrandesBCReal(ref g: CSRGraph,
                                        numParts: int): [0..g.n-1] real {
     var pg = buildPartitionedGraph(g, numParts);
+    var metrics: PartitionedRunMetrics;
 
     const n = g.n;
     // Per-part local BC accumulation (stored in partition-local delta arrays).
