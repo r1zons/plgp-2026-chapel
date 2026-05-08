@@ -4,6 +4,7 @@
   Partitioned Message-Passing Brandes (single-process simulation).
 */
 module PartitionedMessages {
+  use List;
 
   record RelaxMessage {
     var targetVertex: int;
@@ -18,35 +19,28 @@ module PartitionedMessages {
 
   record PartMessageBuffer {
     // В этом буфере хранятся сообщения, адресованные конкретной part.
-    var relaxDom: domain(1) = {0..-1};
-    var relaxMsgs: [relaxDom] RelaxMessage;
-
-    var depDom: domain(1) = {0..-1};
-    var depMsgs: [depDom] DependencyMessage;
+    var relaxMsgs: list(RelaxMessage);
+    var depMsgs: list(DependencyMessage);
 
     proc ref clear() {
-      relaxDom = {0..-1};
-      depDom = {0..-1};
+      relaxMsgs.clear();
+      depMsgs.clear();
     }
 
     proc ref appendRelax(msg: RelaxMessage) {
-      const next = if relaxDom.size == 0 then 0 else relaxDom.high + 1;
-      relaxDom = {0..next};
-      relaxMsgs[next] = msg;
+      relaxMsgs.pushBack(msg);
     }
 
     proc ref appendDependency(msg: DependencyMessage) {
-      const next = if depDom.size == 0 then 0 else depDom.high + 1;
-      depDom = {0..next};
-      depMsgs[next] = msg;
+      depMsgs.pushBack(msg);
     }
 
     proc numRelax(): int {
-      return relaxDom.size;
+      return relaxMsgs.size;
     }
 
     proc numDependency(): int {
-      return depDom.size;
+      return depMsgs.size;
     }
   }
 
@@ -101,21 +95,21 @@ module PartitionedMessages {
     }
 
     // Для итерации по relax-сообщениям части.
-    iter ref relaxMessages(part: int) ref {
+    iter relaxMessages(part: int) {
       if part < 0 || part >= numParts then
         halt("relaxMessages: part out of range: ", part);
 
-      for i in buffers[part].relaxDom do
-        yield buffers[part].relaxMsgs[i];
+      for m in buffers[part].relaxMsgs do
+        yield m;
     }
 
     // Для итерации по dependency-сообщениям части.
-    iter ref dependencyMessages(part: int) ref {
+    iter dependencyMessages(part: int) {
       if part < 0 || part >= numParts then
         halt("dependencyMessages: part out of range: ", part);
 
-      for i in buffers[part].depDom do
-        yield buffers[part].depMsgs[i];
+      for m in buffers[part].depMsgs do
+        yield m;
     }
   }
 }
