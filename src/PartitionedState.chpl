@@ -196,6 +196,10 @@ module PartitionedState {
       parts[part].frontier[localIndex] = value;
     }
 
+    proc getNextFrontierLocal(part: int, localIndex: int): bool {
+      return parts[part].nextFrontier[localIndex];
+    }
+
     proc ref setNextFrontierLocal(part: int, localIndex: int, value: bool) {
       parts[part].nextFrontier[localIndex] = value;
     }
