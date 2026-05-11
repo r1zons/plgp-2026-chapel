@@ -42,7 +42,7 @@ module PartitionedBrandesParallel {
           for li in st.parts[p].localDom do
             st.setNextFrontierLocal(p, li, false);
 
-        coforall p in 0..pg.numParts-1 {
+        coforall p in 0..pg.numParts-1 with (ref st, ref msg) {
           for li in st.parts[p].localDom {
             if !st.getFrontierLocal(p, li) then continue;
             const v = pg.firstVertexOfPart(p) + li;
@@ -96,7 +96,7 @@ module PartitionedBrandesParallel {
       for level in 1..maxDist by -1 {
         msg.clearAll();
 
-        coforall p in 0..pg.numParts-1 {
+        coforall p in 0..pg.numParts-1 with (ref st, ref msg) {
           for wLi in st.parts[p].localDom {
             if st.getDistLocal(p, wLi) != level then continue;
             const w = pg.firstVertexOfPart(p) + wLi;
