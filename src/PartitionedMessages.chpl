@@ -172,6 +172,26 @@ module PartitionedMessages {
       return depOut[fromPart, toPart].numDependency();
     }
 
+    iter relaxMessagesFromTo(fromPart: int, toPart: int) {
+      if fromPart < 0 || fromPart >= numParts then
+        halt("relaxMessagesFromTo: fromPart out of range: ", fromPart);
+      if toPart < 0 || toPart >= numParts then
+        halt("relaxMessagesFromTo: toPart out of range: ", toPart);
+
+      for m in relaxOut[fromPart, toPart].relaxMsgs do
+        yield m;
+    }
+
+    iter dependencyMessagesFromTo(fromPart: int, toPart: int) {
+      if fromPart < 0 || fromPart >= numParts then
+        halt("dependencyMessagesFromTo: fromPart out of range: ", fromPart);
+      if toPart < 0 || toPart >= numParts then
+        halt("dependencyMessagesFromTo: toPart out of range: ", toPart);
+
+      for m in depOut[fromPart, toPart].depMsgs do
+        yield m;
+    }
+
     iter relaxMessagesTo(dstPart: int) {
       if dstPart < 0 || dstPart >= numParts then
         halt("relaxMessagesTo: dstPart out of range: ", dstPart);
