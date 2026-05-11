@@ -45,7 +45,7 @@ module PartitionedState {
 
     var parts: [partDom] PartSourceState;
 
-    proc initFromPartitionedGraph(ref pg: PartitionedGraph) {
+    proc ref initFromPartitionedGraph(ref pg: PartitionedGraph) {
       n = pg.n;
       numParts = pg.numParts;
       partDom = {0..numParts-1};
