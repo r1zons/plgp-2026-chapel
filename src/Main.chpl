@@ -17,6 +17,7 @@ module Main {
   use BrandesBC;
   use BrandesBCParallel;
   use PartitionedBrandes;
+  use PartitionedBrandesParallel;
   use Compare;
   use Report;
 
@@ -26,6 +27,7 @@ module Main {
   config const parTasks = 0;
   config const partitionedParts = 0;
   config const mode = "correctness"; // correctness | benchmark
+  config const runPartitionedParallel = true;
 
   private proc printFirstRealMismatches(ref base: [] real, ref other: [] real,
                                         eps: real, cmpTag: string,
@@ -111,12 +113,25 @@ module Main {
     const pmsg1 = timeSinceEpoch().totalSeconds();
     const pMetrics = getLastPartitionedRunMetrics();
 
+    var brandesPartitionedParallel: [0..n-1] real;
+    brandesPartitionedParallel = 0.0;
+    var ppar0 = 0.0;
+    var ppar1 = 0.0;
+    if runPartitionedParallel {
+      ppar0 = timeSinceEpoch().totalSeconds();
+      brandesPartitionedParallel = computePartitionedBrandesBCParallelReal(g, parts);
+      ppar1 = timeSinceEpoch().totalSeconds();
+    }
+
     const eps = 1.0e-9;
     const okSeq = if mode == "benchmark" then true else approximatelyEqual(naive, brandesSeq, eps);
     const okPar = if mode == "benchmark" then true else approximatelyEqual(naive, brandesPar, eps);
     const okPartitioned = if mode == "benchmark" then true else approximatelyEqual(naive, brandesPartitioned, eps);
+    const okPartitionedParallel = if !runPartitionedParallel then true
+      else if mode == "benchmark" then approximatelyEqual(brandesSeq, brandesPartitionedParallel, eps)
+      else approximatelyEqual(naive, brandesPartitionedParallel, eps);
 
-    if mode != "benchmark" && (!okSeq || !okPar || !okPartitioned) then
+    if (!okSeq || !okPar || !okPartitioned || !okPartitionedParallel) then
       writeln("\n=== Run: Mismatches ===");
 
     if mode != "benchmark" && !okSeq then
@@ -127,6 +142,12 @@ module Main {
 
     if mode != "benchmark" && !okPartitioned then
       printFirstRealMismatches(naive, brandesPartitioned, eps, "Naive vs Partitioned", 5);
+
+    if !okPartitionedParallel then
+      if mode == "benchmark" then
+        printFirstRealMismatches(brandesSeq, brandesPartitionedParallel, eps, "Seq vs PartitionedParallel", 5);
+      else
+        printFirstRealMismatches(naive, brandesPartitionedParallel, eps, "Naive vs PartitionedParallel", 5);
 
     var rep: RunReport;
     rep.n = n;
@@ -144,14 +165,18 @@ module Main {
     rep.brandesSeqSec = seq1 - seq0;
     rep.brandesParSec = par1 - par0;
     rep.brandesPartitionedSec = pmsg1 - pmsg0;
+    rep.brandesPartitionedParallelSec = if runPartitionedParallel then (ppar1 - ppar0) else 0.0;
+    rep.ranPartitionedParallel = runPartitionedParallel;
     rep.partitionedParts = parts;
     rep.naiveTotalSec = (gen1 - gen0) + (naive1 - naive0);
     rep.brandesSeqTotalSec = (gen1 - gen0) + (seq1 - seq0);
     rep.brandesParTotalSec = (gen1 - gen0) + (par1 - par0);
     rep.brandesPartitionedTotalSec = (gen1 - gen0) + (pmsg1 - pmsg0);
+    rep.brandesPartitionedParallelTotalSec = if runPartitionedParallel then (gen1 - gen0) + (ppar1 - ppar0) else 0.0;
     rep.passedSeq = okSeq;
     rep.passedPar = okPar;
     rep.passedPartitioned = okPartitioned;
+    rep.passedPartitionedParallel = okPartitionedParallel;
     rep.relaxMessagesSent = pMetrics.relaxMessagesSent;
     rep.dependencyMessagesSent = pMetrics.dependencyMessagesSent;
     rep.cutEdgeTraversals = pMetrics.cutEdgeTraversals;

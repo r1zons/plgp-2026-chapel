@@ -73,7 +73,8 @@
 - `--command=Generate|Run`
 - `--n=<число вершин>`
 - `--seed=<seed>`
-- `--partitionedParts=<int>` (для partitioned Brandes; `<=0` => безопасный default)
+- `--partitionedParts=<int>` (для partitioned алгоритмов; `<=0` => безопасный default)
+- `--runPartitionedParallel=true|false` (включить/выключить PartitionedBrandesParallel в Run)
 
 Примеры:
 
@@ -118,14 +119,17 @@ make clean       # очистить bin/
 - `Brandes time: ...`
 - `Parallel Brandes time: ...`
 - `Partitioned Brandes time: ...`
+- `Partitioned Parallel Brandes time: ...`
 - `Partitioned parts: ...`
 - `Naive total: ...`
 - `Brandes total: ...`
 - `Parallel Brandes total: ...`
 - `Partitioned Brandes total: ...`
+- `Partitioned Parallel Brandes total: ...`
 - `Correctness check seq: PASS/FAIL`
 - `Correctness check par: PASS/FAIL`
 - `Correctness check partitioned: PASS/FAIL`
+- `Correctness check partitioned parallel: PASS/FAIL`
 
 Пример:
 

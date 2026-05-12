@@ -11,14 +11,18 @@ module Report {
     var brandesSeqSec: real;
     var brandesParSec: real;
     var brandesPartitionedSec: real;
+    var brandesPartitionedParallelSec: real;
+    var ranPartitionedParallel: bool;
     var partitionedParts: int;
     var naiveTotalSec: real;
     var brandesSeqTotalSec: real;
     var brandesParTotalSec: real;
     var brandesPartitionedTotalSec: real;
+    var brandesPartitionedParallelTotalSec: real;
     var passedSeq: bool;
     var passedPar: bool;
     var passedPartitioned: bool;
+    var passedPartitionedParallel: bool;
     var mode: string;
     var graphModel: string;
     var targetAvgDegree: real;
@@ -53,6 +57,7 @@ module Report {
     writeln("Brandes time: ", rep.brandesSeqSec);
     writeln("Parallel Brandes time: ", rep.brandesParSec);
     writeln("Partitioned Brandes time: ", rep.brandesPartitionedSec);
+    writeln("Partitioned Parallel Brandes time: ", if rep.ranPartitionedParallel then rep.brandesPartitionedParallelSec else -1.0);
     writeln("Partitioned parts: ", rep.partitionedParts);
     writeln("Partitioned forward BFS time: ", rep.partitionedForwardBfsSec);
     writeln("Partitioned backward time: ", rep.partitionedBackwardSec);
@@ -64,11 +69,13 @@ module Report {
     writeln("Brandes total: ", rep.brandesSeqTotalSec);
     writeln("Parallel Brandes total: ", rep.brandesParTotalSec);
     writeln("Partitioned Brandes total: ", rep.brandesPartitionedTotalSec);
+    writeln("Partitioned Parallel Brandes total: ", if rep.ranPartitionedParallel then rep.brandesPartitionedParallelTotalSec else -1.0);
 
     writeln("\n=== Run: Correctness ===");
     writeln("Correctness check seq: ", if rep.passedSeq then "PASS" else "FAIL");
     writeln("Correctness check par: ", if rep.passedPar then "PASS" else "FAIL");
     writeln("Correctness check partitioned: ", if rep.passedPartitioned then "PASS" else "FAIL");
+    writeln("Correctness check partitioned parallel: ", if rep.passedPartitionedParallel then "PASS" else "FAIL");
 
     writeln("\n=== Run: Partitioned Message Stats ===");
     writeln("RELAX messages sent: ", rep.relaxMessagesSent);
