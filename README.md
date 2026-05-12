@@ -102,6 +102,23 @@ make clean       # очистить bin/
 ./scripts/pipeline.sh 1000 42 benchmark 16
 ```
 
+И отдельный sweep по количеству partition:
+
+```bash
+chmod +x scripts/partitioned_parts_sweep.sh
+PARTS_VALUES="1 2 4 8 12" ./scripts/partitioned_parts_sweep.sh
+```
+
+Параметры можно переопределить переменными окружения:
+
+```bash
+N=1000 SEED=42 AVG_DEGREE=16 PARTS_VALUES="1 2 4 8" ./scripts/partitioned_parts_sweep.sh
+```
+
+Результаты:
+- логи: `results/partitioned_parts_logs/`
+- CSV: `results/partitioned_parts_summary.csv`
+
 ## Совместимость
 
 - Цель: Chapel 2.8.
