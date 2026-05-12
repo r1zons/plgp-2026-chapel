@@ -120,6 +120,10 @@ make clean       # очистить bin/
 - `Parallel Brandes time: ...`
 - `Partitioned Brandes time: ...`
 - `Partitioned Parallel Brandes time: ...`
+- `Partitioned Parallel forward BFS time: ...`
+- `Partitioned Parallel backward time: ...`
+- `Partitioned Parallel message time: ...`
+- `Partitioned Parallel gather time: ...`
 - `Partitioned parts: ...`
 - `Naive total: ...`
 - `Brandes total: ...`
@@ -130,6 +134,7 @@ make clean       # очистить bin/
 - `Correctness check par: PASS/FAIL`
 - `Correctness check partitioned: PASS/FAIL`
 - `Correctness check partitioned parallel: PASS/FAIL`
+- `=== Run: Partitioned Parallel Message Stats ===`
 
 Пример:
 

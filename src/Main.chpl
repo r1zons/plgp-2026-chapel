@@ -117,10 +117,12 @@ module Main {
     brandesPartitionedParallel = 0.0;
     var ppar0 = 0.0;
     var ppar1 = 0.0;
+    var pparMetrics = getLastPartitionedParallelRunMetrics();
     if runPartitionedParallel {
       ppar0 = timeSinceEpoch().totalSeconds();
       brandesPartitionedParallel = computePartitionedBrandesBCParallelReal(g, parts);
       ppar1 = timeSinceEpoch().totalSeconds();
+      pparMetrics = getLastPartitionedParallelRunMetrics();
     }
 
     const eps = 1.0e-9;
@@ -186,6 +188,15 @@ module Main {
     rep.partitionedBackwardSec = pMetrics.backwardSec;
     rep.partitionedMessageSec = pMetrics.messageSec;
     rep.partitionedGatherSec = pMetrics.gatherSec;
+    rep.pparRelaxMessagesSent = pparMetrics.relaxMessagesSent;
+    rep.pparDependencyMessagesSent = pparMetrics.dependencyMessagesSent;
+    rep.pparCutEdgeTraversals = pparMetrics.cutEdgeTraversals;
+    rep.pparBfsLevelsProcessed = pparMetrics.bfsLevelsProcessed;
+    rep.pparBackwardLevelsProcessed = pparMetrics.backwardLevelsProcessed;
+    rep.pparForwardBfsSec = pparMetrics.forwardBfsSec;
+    rep.pparBackwardSec = pparMetrics.backwardSec;
+    rep.pparMessageSec = pparMetrics.messageSec;
+    rep.pparGatherSec = pparMetrics.gatherSec;
 
     printRunReport(rep);
   }

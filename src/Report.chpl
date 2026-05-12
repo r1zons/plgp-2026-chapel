@@ -38,6 +38,15 @@ module Report {
     var partitionedBackwardSec: real;
     var partitionedMessageSec: real;
     var partitionedGatherSec: real;
+    var pparRelaxMessagesSent: int(64);
+    var pparDependencyMessagesSent: int(64);
+    var pparCutEdgeTraversals: int(64);
+    var pparBfsLevelsProcessed: int(64);
+    var pparBackwardLevelsProcessed: int(64);
+    var pparForwardBfsSec: real;
+    var pparBackwardSec: real;
+    var pparMessageSec: real;
+    var pparGatherSec: real;
   }
 
   proc printRunReport(rep: RunReport) {
@@ -58,6 +67,12 @@ module Report {
     writeln("Parallel Brandes time: ", rep.brandesParSec);
     writeln("Partitioned Brandes time: ", rep.brandesPartitionedSec);
     writeln("Partitioned Parallel Brandes time: ", if rep.ranPartitionedParallel then rep.brandesPartitionedParallelSec else -1.0);
+    if rep.ranPartitionedParallel {
+      writeln("Partitioned Parallel forward BFS time: ", rep.pparForwardBfsSec);
+      writeln("Partitioned Parallel backward time: ", rep.pparBackwardSec);
+      writeln("Partitioned Parallel message time: ", rep.pparMessageSec);
+      writeln("Partitioned Parallel gather time: ", rep.pparGatherSec);
+    }
     writeln("Partitioned parts: ", rep.partitionedParts);
     writeln("Partitioned forward BFS time: ", rep.partitionedForwardBfsSec);
     writeln("Partitioned backward time: ", rep.partitionedBackwardSec);
@@ -83,5 +98,14 @@ module Report {
     writeln("Cut-edge traversals: ", rep.cutEdgeTraversals);
     writeln("BFS levels processed: ", rep.bfsLevelsProcessed);
     writeln("Backward levels processed: ", rep.backwardLevelsProcessed);
+
+    if rep.ranPartitionedParallel {
+      writeln("\n=== Run: Partitioned Parallel Message Stats ===");
+      writeln("RELAX messages sent: ", rep.pparRelaxMessagesSent);
+      writeln("DEPENDENCY messages sent: ", rep.pparDependencyMessagesSent);
+      writeln("Cut-edge traversals: ", rep.pparCutEdgeTraversals);
+      writeln("BFS levels processed: ", rep.pparBfsLevelsProcessed);
+      writeln("Backward levels processed: ", rep.pparBackwardLevelsProcessed);
+    }
   }
 }
