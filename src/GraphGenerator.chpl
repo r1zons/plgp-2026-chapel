@@ -16,7 +16,10 @@ module GraphGenerator {
   use GraphCSR;
 
   // Новая default-модель: sparse граф через целевую среднюю степень.
+  config const graphModel = "sparse";
   config const avgDegree: int = 16;
+  config const numCommunities: int = 4;
+  config const interCommunityFraction: real = 0.05;
   // Старую density-модель оставляем только как явный opt-in.
   // Если edgeDensity >= 0, используется именно она.
   config const edgeDensity: real = -1.0;
@@ -48,6 +51,125 @@ module GraphGenerator {
 
     edgeDom += e;
     return true;
+  }
+
+  private proc targetEdgesForAvgDegree(n: int, requestedAvgDegree: int,
+                                       allowEdgeDensity: bool = true): int {
+    if n <= 1 then
+      return 0;
+
+    const maxEdgesUndirected = (n * (n - 1)) / 2;
+    const minEdgesUndirected = n - 1;
+    var targetEdgesUndirected: int;
+
+    if allowEdgeDensity && edgeDensity >= 0.0 {
+      targetEdgesUndirected = (edgeDensity * maxEdgesUndirected:real):int;
+    } else {
+      const rawTarget = (n:real * requestedAvgDegree:real) / 2.0;
+      targetEdgesUndirected = round(rawTarget):int;
+    }
+
+    if targetEdgesUndirected < minEdgesUndirected then
+      targetEdgesUndirected = minEdgesUndirected;
+    if targetEdgesUndirected > maxEdgesUndirected then
+      targetEdgesUndirected = maxEdgesUndirected;
+
+    return targetEdgesUndirected;
+  }
+
+  private proc sanitizedCommunityCount(n: int, requestedNumCommunities: int): int {
+    if n <= 1 then
+      return 1;
+
+    var communities = requestedNumCommunities;
+    if communities < 1 then
+      communities = 1;
+    if communities > n then
+      communities = n;
+
+    return communities;
+  }
+
+  private proc communityOfVertex(v: int, n: int, communities: int): int {
+    if communities <= 1 then
+      return 0;
+    return (v * communities) / n;
+  }
+
+  private proc firstVertexOfCommunity(c: int, n: int, communities: int): int {
+    return (c * n) / communities;
+  }
+
+  private proc lastVertexExclusiveOfCommunity(c: int, n: int, communities: int): int {
+    return ((c + 1) * n) / communities;
+  }
+
+  private proc countInterCommunityEdges(edgeDom: domain(2*int),
+                                        n: int,
+                                        communities: int): int {
+    var count = 0;
+    for (u, v) in edgeDom {
+      if communityOfVertex(u, n, communities) != communityOfVertex(v, n, communities) then
+        count += 1;
+    }
+    return count;
+  }
+
+  private proc tryAddRandomIntraCommunityEdge(ref rng: randomStream(uint(64)),
+                                              ref edgeDom: domain(2*int),
+                                              n: int,
+                                              communities: int): bool {
+    const maxAttempts = 20 * n + 100;
+    var attempts = 0;
+
+    while attempts < maxAttempts {
+      attempts += 1;
+
+      const c = randomIntInRange(rng, 0, communities - 1);
+      const first = firstVertexOfCommunity(c, n, communities);
+      const lastEx = lastVertexExclusiveOfCommunity(c, n, communities);
+      if lastEx - first < 2 then
+        continue;
+
+      const u = randomIntInRange(rng, first, lastEx - 1);
+      const v = randomIntInRange(rng, first, lastEx - 1);
+      if tryAddEdge(edgeDom, u, v) then
+        return true;
+    }
+
+    return false;
+  }
+
+  private proc tryAddRandomInterCommunityEdge(ref rng: randomStream(uint(64)),
+                                              ref edgeDom: domain(2*int),
+                                              n: int,
+                                              communities: int): bool {
+    if communities < 2 then
+      return false;
+
+    const maxAttempts = 20 * n + 100;
+    var attempts = 0;
+
+    while attempts < maxAttempts {
+      attempts += 1;
+
+      const c1 = randomIntInRange(rng, 0, communities - 1);
+      var c2 = randomIntInRange(rng, 0, communities - 2);
+      if c2 >= c1 then
+        c2 += 1;
+
+      const first1 = firstVertexOfCommunity(c1, n, communities);
+      const lastEx1 = lastVertexExclusiveOfCommunity(c1, n, communities);
+      const first2 = firstVertexOfCommunity(c2, n, communities);
+      const lastEx2 = lastVertexExclusiveOfCommunity(c2, n, communities);
+
+      const u = randomIntInRange(rng, first1, lastEx1 - 1);
+      const v = randomIntInRange(rng, first2, lastEx2 - 1);
+      if tryAddEdge(edgeDom, u, v) then
+        return true;
+    }
+
+    return false;
   }
 
   // Строим CSR из множества неориентированных рёбер edgeDom.
@@ -98,6 +220,12 @@ module GraphGenerator {
   }
 
   proc generateConnectedRandomGraph(n: int, seed: int): CSRGraph {
+    if graphModel == "clustered" {
+      return generateConnectedClusteredRandomGraph(n, seed);
+    } else if graphModel != "sparse" {
+      halt("Unsupported graphModel=", graphModel, ". Use sparse or clustered.");
+    }
+
     var g: CSRGraph;
 
     if n <= 0 {
@@ -134,19 +262,8 @@ module GraphGenerator {
     }
 
     const maxEdgesUndirected = (n * (n - 1)) / 2;
-    const minEdgesUndirected = n - 1;
     // 2) Дополняем случайными рёбрами до целевого числа.
-    var targetEdgesUndirected: int;
-    if edgeDensity >= 0.0 {
-      targetEdgesUndirected = (edgeDensity * maxEdgesUndirected:real):int;
-    } else {
-      const rawTarget = (n:real * avgDegree:real) / 2.0;
-      targetEdgesUndirected = round(rawTarget):int;
-    }
-    if targetEdgesUndirected < minEdgesUndirected then
-      targetEdgesUndirected = minEdgesUndirected;
-    if targetEdgesUndirected > maxEdgesUndirected then
-      targetEdgesUndirected = maxEdgesUndirected;
+    const targetEdgesUndirected = targetEdgesForAvgDegree(n, avgDegree);
 
     // Ограничиваем число попыток, чтобы избежать длинных циклов на плотных графах.
     var attempts = 0;
@@ -157,6 +274,98 @@ module GraphGenerator {
       const u = randomIntInRange(rng, 0, n-1);
       const v = randomIntInRange(rng, 0, n-1);
       tryAddEdge(edgeDom, u, v);
+    }
+
+    return buildCSRFromEdgeSet(n, edgeDom);
+  }
+
+  proc generateConnectedClusteredRandomGraph(n: int, seed: int,
+                                             requestedNumCommunities: int = numCommunities,
+                                             requestedInterCommunityFraction: real = interCommunityFraction,
+                                             requestedAvgDegree: int = avgDegree): CSRGraph {
+    var g: CSRGraph;
+
+    if n <= 0 {
+      g.n = 0;
+      g.rowDom = {0..0};
+      g.rowPtr = [i in g.rowDom] 0;
+      g.colDom = {0..-1};
+      g.colIdx = [i in g.colDom] 0;
+      return g;
+    }
+
+    if n == 1 {
+      g.n = 1;
+      g.rowDom = {0..1};
+      g.rowPtr = [i in g.rowDom] 0;
+      g.colDom = {0..-1};
+      g.colIdx = [i in g.colDom] 0;
+      return g;
+    }
+
+    const communities = sanitizedCommunityCount(n, requestedNumCommunities);
+    var rng = new randomStream(uint(64), seed=seed:int(64));
+    var edgeDom: domain(2*int);
+
+    // Сначала строим связный clustered каркас:
+    // дерево внутри каждой community плюс цепочка межcommunity рёбер.
+    for c in 0..communities-1 {
+      const first = firstVertexOfCommunity(c, n, communities);
+      const lastEx = lastVertexExclusiveOfCommunity(c, n, communities);
+
+      for v in first+1..lastEx-1 {
+        const parent = randomIntInRange(rng, first, v - 1);
+        const added = tryAddEdge(edgeDom, v, parent);
+        if !added then
+          halt("Internal error: failed to add clustered tree edge");
+      }
+    }
+
+    for c in 1..communities-1 {
+      const prevFirst = firstVertexOfCommunity(c - 1, n, communities);
+      const prevLastEx = lastVertexExclusiveOfCommunity(c - 1, n, communities);
+      const curFirst = firstVertexOfCommunity(c, n, communities);
+      const curLastEx = lastVertexExclusiveOfCommunity(c, n, communities);
+      const u = randomIntInRange(rng, prevFirst, prevLastEx - 1);
+      const v = randomIntInRange(rng, curFirst, curLastEx - 1);
+      const added = tryAddEdge(edgeDom, u, v);
+      if !added then
+        halt("Internal error: failed to add clustered bridge edge");
+    }
+
+    const targetEdgesUndirected = targetEdgesForAvgDegree(n, requestedAvgDegree, false);
+    var boundedInterFraction = requestedInterCommunityFraction;
+    if boundedInterFraction < 0.0 then
+      boundedInterFraction = 0.0;
+    if boundedInterFraction > 1.0 then
+      boundedInterFraction = 1.0;
+
+    var targetInterEdges = round(targetEdgesUndirected:real * boundedInterFraction):int;
+    if targetInterEdges < 0 then
+      targetInterEdges = 0;
+    if targetInterEdges > targetEdgesUndirected then
+      targetInterEdges = targetEdgesUndirected;
+
+    var interEdges = countInterCommunityEdges(edgeDom, n, communities);
+    const maxEdgesUndirected = (n * (n - 1)) / 2;
+    const maxAttempts = 20 * maxEdgesUndirected + 100;
+    var attempts = 0;
+
+    while edgeDom.size < targetEdgesUndirected && attempts < maxAttempts {
+      attempts += 1;
+
+      if communities > 1 && interEdges < targetInterEdges {
+        if tryAddRandomInterCommunityEdge(rng, edgeDom, n, communities) {
+          interEdges += 1;
+        } else {
+          tryAddRandomIntraCommunityEdge(rng, edgeDom, n, communities);
+        }
+      } else {
+        if !tryAddRandomIntraCommunityEdge(rng, edgeDom, n, communities) {
+          if tryAddRandomInterCommunityEdge(rng, edgeDom, n, communities) then
+            interEdges += 1;
+        }
+      }
     }
 
     return buildCSRFromEdgeSet(n, edgeDom);

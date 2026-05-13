@@ -1,0 +1,54 @@
+
+=== Run: Graph Info ===
+Graph size: 400
+Seed: 42
+Run mode: benchmark
+Graph model: sparse
+Target avg degree: 16.0
+Actual avg degree: 16.0
+Undirected edges: 3200
+Directed edges: 6400
+
+=== Run: Timings ===
+Generation time: 0.00485992
+Naive time: 0.0
+Brandes time: 0.378179
+Parallel Brandes time: 0.064831
+Partitioned Brandes time: 1.37459
+Partitioned Parallel Brandes time: 0.910235
+Partitioned Parallel forward BFS time: 0.52576
+Partitioned Parallel backward time: 0.334117
+Partitioned Parallel message time: 0.000654936
+Partitioned Parallel gather time: 3.29018e-05
+Partitioned parts: 1
+Partitioned forward BFS time: 0.396171
+Partitioned backward time: 0.813026
+Partitioned message time: 0.0268373
+Partitioned gather time: 4.41074e-05
+
+=== Run: Totals ===
+Naive total: 0.00485992
+Brandes total: 0.383039
+Parallel Brandes total: 0.0696909
+Partitioned Brandes total: 1.37945
+Partitioned Parallel Brandes total: 0.915095
+
+=== Run: Correctness ===
+Correctness check seq: PASS
+Correctness check par: PASS
+Correctness check partitioned: PASS
+Correctness check partitioned parallel: PASS
+
+=== Run: Partitioned Message Stats ===
+RELAX messages sent: 0
+DEPENDENCY messages sent: 0
+Cut-edge traversals: 0
+BFS levels processed: 1669
+Backward levels processed: 1269
+
+=== Run: Partitioned Parallel Message Stats ===
+RELAX messages sent: 0
+DEPENDENCY messages sent: 0
+Cut-edge traversals: 0
+BFS levels processed: 1669
+Backward levels processed: 1269

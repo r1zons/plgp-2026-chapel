@@ -101,6 +101,24 @@ module TestGraphGenerator {
     return target;
   }
 
+  private proc communityOf(v: int, n: int, communities: int): int {
+    return (v * communities) / n;
+  }
+
+  private proc countInterCommunityEdges(ref g: CSRGraph, communities: int): int {
+    var count = 0;
+
+    for v in 0..g.n-1 {
+      for p in g.rowPtr[v]..g.rowPtr[v+1]-1 {
+        const u = g.colIdx[p];
+        if v < u && communityOf(v, g.n, communities) != communityOf(u, g.n, communities) then
+          count += 1;
+      }
+    }
+
+    return count;
+  }
+
   private proc runCase(n: int, seed: int, avgD: int = 16) {
     var g = generateConnectedRandomGraph(n, seed);
 
@@ -116,10 +134,34 @@ module TestGraphGenerator {
     assert(abs(undirectedEdges - targetEdges) <= tol);
   }
 
+  private proc runClusteredCase(n: int, seed: int, communities: int,
+                                interFraction: real, avgD: int) {
+    var g = generateConnectedClusteredRandomGraph(n, seed, communities,
+                                                  interFraction, avgD);
+
+    assert(g.n == n);
+    assertCSRWellFormed(g);
+    assertNoSelfLoops(g);
+    assertNoUndirectedDuplicates(g);
+    assertConnected(g);
+
+    const undirectedEdges = g.numDirectedEdges() / 2;
+    const targetEdges = expectedTargetEdges(n, avgD);
+    const tol = max(2, (targetEdges * 10) / 100);
+    assert(abs(undirectedEdges - targetEdges) <= tol);
+
+    const interEdges = countInterCommunityEdges(g, communities);
+    assert(interEdges >= communities - 1);
+    assert(interEdges > 0);
+    assert(interEdges < undirectedEdges / 2);
+  }
+
   proc main() {
     runCase(5, 101, 16);
     runCase(100, 202, 16);
     runCase(1000, 303, 16);
+    runClusteredCase(40, 404, 4, 0.10, 6);
+    runClusteredCase(75, 505, 5, 0.05, 8);
 
     writeln("TestGraphGenerator: PASS");
   }
