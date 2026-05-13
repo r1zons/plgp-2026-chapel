@@ -5,6 +5,7 @@ set -euo pipefail
 #   ./scripts/pipeline.sh <n> <seed>
 #   ./scripts/pipeline.sh <n> <seed> <mode>
 #   ./scripts/pipeline.sh <n> <seed> <mode> <avgDegree>
+#   ./scripts/pipeline.sh <n> <seed> [mode] [avgDegree] [extra --flags ...]
 
 N="${1:-100}"
 SEED="${2:-1}"

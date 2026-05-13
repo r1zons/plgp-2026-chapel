@@ -12,6 +12,7 @@ module Report {
     var brandesParSec: real;
     var brandesPartitionedSec: real;
     var brandesPartitionedParallelSec: real;
+    var ranPartitioned: bool;
     var ranPartitionedParallel: bool;
     var partitionedParts: int;
     var naiveTotalSec: real;
@@ -71,7 +72,10 @@ module Report {
       writeln("Naive time: ", rep.naiveSec);
     writeln("Brandes time: ", rep.brandesSeqSec);
     writeln("Parallel Brandes time: ", rep.brandesParSec);
-    writeln("Partitioned Brandes time: ", rep.brandesPartitionedSec);
+    if rep.ranPartitioned then
+      writeln("Partitioned Brandes time: ", rep.brandesPartitionedSec);
+    else
+      writeln("Partitioned Brandes time: SKIPPED");
     writeln("Partitioned Parallel Brandes time: ", if rep.ranPartitionedParallel then rep.brandesPartitionedParallelSec else -1.0);
     if rep.ranPartitionedParallel {
       writeln("Partitioned Parallel forward BFS time: ", rep.pparForwardBfsSec);
@@ -92,7 +96,10 @@ module Report {
       writeln("Naive total: ", rep.naiveTotalSec);
     writeln("Brandes total: ", rep.brandesSeqTotalSec);
     writeln("Parallel Brandes total: ", rep.brandesParTotalSec);
-    writeln("Partitioned Brandes total: ", rep.brandesPartitionedTotalSec);
+    if rep.ranPartitioned then
+      writeln("Partitioned Brandes total: ", rep.brandesPartitionedTotalSec);
+    else
+      writeln("Partitioned Brandes total: SKIPPED");
     writeln("Partitioned Parallel Brandes total: ", if rep.ranPartitionedParallel then rep.brandesPartitionedParallelTotalSec else -1.0);
 
     writeln("\n=== Run: Correctness ===");
@@ -101,15 +108,20 @@ module Report {
     else
       writeln("Correctness check seq: ", if rep.passedSeq then "PASS" else "FAIL");
     writeln("Correctness check par: ", if rep.passedPar then "PASS" else "FAIL");
-    writeln("Correctness check partitioned: ", if rep.passedPartitioned then "PASS" else "FAIL");
+    if rep.ranPartitioned then
+      writeln("Correctness check partitioned: ", if rep.passedPartitioned then "PASS" else "FAIL");
+    else
+      writeln("Correctness check partitioned: SKIPPED");
     writeln("Correctness check partitioned parallel: ", if rep.passedPartitionedParallel then "PASS" else "FAIL");
 
-    writeln("\n=== Run: Partitioned Message Stats ===");
-    writeln("RELAX messages sent: ", rep.relaxMessagesSent);
-    writeln("DEPENDENCY messages sent: ", rep.dependencyMessagesSent);
-    writeln("Cut-edge traversals: ", rep.cutEdgeTraversals);
-    writeln("BFS levels processed: ", rep.bfsLevelsProcessed);
-    writeln("Backward levels processed: ", rep.backwardLevelsProcessed);
+    if rep.ranPartitioned {
+      writeln("\n=== Run: Partitioned Message Stats ===");
+      writeln("RELAX messages sent: ", rep.relaxMessagesSent);
+      writeln("DEPENDENCY messages sent: ", rep.dependencyMessagesSent);
+      writeln("Cut-edge traversals: ", rep.cutEdgeTraversals);
+      writeln("BFS levels processed: ", rep.bfsLevelsProcessed);
+      writeln("Backward levels processed: ", rep.backwardLevelsProcessed);
+    }
 
     if rep.ranPartitionedParallel {
       writeln("\n=== Run: Partitioned Parallel Message Stats ===");

@@ -27,6 +27,7 @@ module Main {
   config const parTasks = 0;
   config const partitionedParts = 0;
   config const mode = "correctness"; // correctness | benchmark
+  config const runPartitioned: bool = true;
   config const runPartitionedParallel = true;
   config const skipNaive: bool = false;
   config const maxNaiveN: int = 200;
@@ -79,10 +80,14 @@ module Main {
   }
 
   proc doRun(n: int, seed: int) {
-    const referenceAlgorithm = if skipNaive then "Sequential Brandes" else "NaiveBC";
+    const useSeqReference = skipNaive || mode == "benchmark";
+    const referenceAlgorithm = if useSeqReference then "Sequential Brandes" else "NaiveBC";
     writeln("\n=== Run: Effective Config ===");
     writeln("Run mode: ", mode);
     writeln("skipNaive: ", skipNaive);
+    writeln("runPartitioned: ", runPartitioned);
+    writeln("runPartitionedParallel: ", runPartitionedParallel);
+    writeln("partitionedParts: ", partitionedParts);
     writeln("maxNaiveN: ", maxNaiveN);
     writeln("Reference algorithm: ", referenceAlgorithm);
 
@@ -124,10 +129,17 @@ module Main {
     if parts > n then
       parts = n;
 
-    const pmsg0 = timeSinceEpoch().totalSeconds();
-    var brandesPartitioned = computePartitionedBrandesBCReal(g, parts);
-    const pmsg1 = timeSinceEpoch().totalSeconds();
-    const pMetrics = getLastPartitionedRunMetrics();
+    var brandesPartitioned: [0..n-1] real;
+    brandesPartitioned = 0.0;
+    var pmsg0 = 0.0;
+    var pmsg1 = 0.0;
+    var pMetrics = getLastPartitionedRunMetrics();
+    if runPartitioned {
+      pmsg0 = timeSinceEpoch().totalSeconds();
+      brandesPartitioned = computePartitionedBrandesBCReal(g, parts);
+      pmsg1 = timeSinceEpoch().totalSeconds();
+      pMetrics = getLastPartitionedRunMetrics();
+    }
 
     var brandesPartitionedParallel: [0..n-1] real;
     brandesPartitionedParallel = 0.0;
@@ -142,13 +154,14 @@ module Main {
     }
 
     const eps = 1.0e-9;
-    const okSeq = if skipNaive then true else approximatelyEqual(naive, brandesSeq, eps);
-    const okPar = if skipNaive then approximatelyEqual(brandesSeq, brandesPar, eps)
+    const okSeq = if useSeqReference then true else approximatelyEqual(naive, brandesSeq, eps);
+    const okPar = if useSeqReference then approximatelyEqual(brandesSeq, brandesPar, eps)
                   else approximatelyEqual(naive, brandesPar, eps);
-    const okPartitioned = if skipNaive then approximatelyEqual(brandesSeq, brandesPartitioned, eps)
+    const okPartitioned = if !runPartitioned then true
+                          else if useSeqReference then approximatelyEqual(brandesSeq, brandesPartitioned, eps)
                           else approximatelyEqual(naive, brandesPartitioned, eps);
     const okPartitionedParallel = if !runPartitionedParallel then true
-      else if skipNaive then approximatelyEqual(brandesSeq, brandesPartitionedParallel, eps)
+      else if useSeqReference then approximatelyEqual(brandesSeq, brandesPartitionedParallel, eps)
       else approximatelyEqual(naive, brandesPartitionedParallel, eps);
 
     if (!okSeq || !okPar || !okPartitioned || !okPartitionedParallel) then
@@ -163,8 +176,8 @@ module Main {
       else
         printFirstRealMismatches(naive, brandesPar, eps, "Naive vs Par", 5);
 
-    if !okPartitioned then
-      if skipNaive then
+    if runPartitioned && !okPartitioned then
+      if useSeqReference then
         printFirstRealMismatches(brandesSeq, brandesPartitioned, eps, "Seq vs Partitioned", 5);
       else
         printFirstRealMismatches(naive, brandesPartitioned, eps, "Naive vs Partitioned", 5);
@@ -181,6 +194,7 @@ module Main {
     rep.mode = mode;
     rep.skipNaive = skipNaive;
     rep.referenceAlgorithm = referenceAlgorithm;
+    rep.ranPartitioned = runPartitioned;
     rep.graphModel = if edgeDensity >= 0.0 then "dense-opt-in" else "sparse";
     rep.undirectedEdges = g.numDirectedEdges() / 2;
     rep.directedEdges = g.numDirectedEdges();
@@ -192,14 +206,14 @@ module Main {
     rep.naiveSec = if skipNaive then 0.0 else (naive1 - naive0);
     rep.brandesSeqSec = seq1 - seq0;
     rep.brandesParSec = par1 - par0;
-    rep.brandesPartitionedSec = pmsg1 - pmsg0;
+    rep.brandesPartitionedSec = if runPartitioned then (pmsg1 - pmsg0) else 0.0;
     rep.brandesPartitionedParallelSec = if runPartitionedParallel then (ppar1 - ppar0) else 0.0;
     rep.ranPartitionedParallel = runPartitionedParallel;
     rep.partitionedParts = parts;
     rep.naiveTotalSec = if skipNaive then 0.0 else (gen1 - gen0) + (naive1 - naive0);
     rep.brandesSeqTotalSec = (gen1 - gen0) + (seq1 - seq0);
     rep.brandesParTotalSec = (gen1 - gen0) + (par1 - par0);
-    rep.brandesPartitionedTotalSec = (gen1 - gen0) + (pmsg1 - pmsg0);
+    rep.brandesPartitionedTotalSec = if runPartitioned then (gen1 - gen0) + (pmsg1 - pmsg0) else 0.0;
     rep.brandesPartitionedParallelTotalSec = if runPartitionedParallel then (gen1 - gen0) + (ppar1 - ppar0) else 0.0;
     rep.passedSeq = okSeq;
     rep.passedPar = okPar;

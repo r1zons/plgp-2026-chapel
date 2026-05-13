@@ -74,6 +74,7 @@
 - `--n=<число вершин>`
 - `--seed=<seed>`
 - `--partitionedParts=<int>` (для partitioned алгоритмов; `<=0` => безопасный default)
+- `--runPartitioned=true|false` (включить/выключить serial Partitioned Brandes в Run)
 - `--runPartitionedParallel=true|false` (включить/выключить PartitionedBrandesParallel в Run)
 - `--skipNaive=true|false` (пропустить наивный алгоритм в Run для больших графов)
 - `--maxNaiveN=<int>` (порог для запуска NaiveBC; при `n > maxNaiveN` нужен `--skipNaive=true`)
@@ -84,6 +85,7 @@
 make build
 ./bin/bc_compare --command=Generate --n=7 --seed=42
 ./bin/bc_compare --command=Run --n=100 --seed=42 --partitionedParts=2
+./bin/bc_compare --command=Run --n=10000 --seed=42 --avgDegree=16 --skipNaive=true --runPartitioned=false --runPartitionedParallel=true
 ```
 
 ## Как запускать через Makefile
@@ -104,6 +106,7 @@ make clean       # очистить bin/
 ./scripts/pipeline.sh 1000 42 benchmark 16
 ./scripts/pipeline.sh 1000 42 --skipNaive=true
 ./scripts/pipeline.sh 1000 42 benchmark 16 --skipNaive=true
+./scripts/pipeline.sh 10000 42 benchmark 16 --skipNaive=true --runPartitioned=false
 ```
 
 И отдельный sweep по количеству partition:
