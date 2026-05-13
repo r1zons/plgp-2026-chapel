@@ -28,6 +28,8 @@ module Main {
   config const partitionedParts = 0;
   config const mode = "correctness"; // correctness | benchmark
   config const runPartitionedParallel = true;
+  config const skipNaive: bool = false;
+  config const maxNaiveN: int = 200;
 
   private proc printFirstRealMismatches(ref base: [] real, ref other: [] real,
                                         eps: real, cmpTag: string,
@@ -77,6 +79,16 @@ module Main {
   }
 
   proc doRun(n: int, seed: int) {
+    const referenceAlgorithm = if skipNaive then "Sequential Brandes" else "NaiveBC";
+    writeln("\n=== Run: Effective Config ===");
+    writeln("Run mode: ", mode);
+    writeln("skipNaive: ", skipNaive);
+    writeln("maxNaiveN: ", maxNaiveN);
+    writeln("Reference algorithm: ", referenceAlgorithm);
+
+    if !skipNaive && n > maxNaiveN then
+      halt("NaiveBC is disabled for n > maxNaiveN. Use --skipNaive=true or increase --maxNaiveN explicitly.");
+
     const gen0 = timeSinceEpoch().totalSeconds();
     var g = generateConnectedRandomGraph(n, seed);
     const gen1 = timeSinceEpoch().totalSeconds();
@@ -88,10 +100,14 @@ module Main {
     naive = 0.0;
     var naive0 = 0.0;
     var naive1 = 0.0;
-    if mode != "benchmark" {
+    if !skipNaive {
       naive0 = timeSinceEpoch().totalSeconds();
       naive = computeNaiveBCReal(g);
       naive1 = timeSinceEpoch().totalSeconds();
+    } else {
+      writeln("Skipping NaiveBC.");
+      writeln("Naive time: SKIPPED");
+      writeln("Naive total: SKIPPED");
     }
 
     const seq0 = timeSinceEpoch().totalSeconds();
@@ -126,24 +142,32 @@ module Main {
     }
 
     const eps = 1.0e-9;
-    const okSeq = if mode == "benchmark" then true else approximatelyEqual(naive, brandesSeq, eps);
-    const okPar = if mode == "benchmark" then true else approximatelyEqual(naive, brandesPar, eps);
-    const okPartitioned = if mode == "benchmark" then true else approximatelyEqual(naive, brandesPartitioned, eps);
+    const okSeq = if skipNaive then true else approximatelyEqual(naive, brandesSeq, eps);
+    const okPar = if skipNaive then approximatelyEqual(brandesSeq, brandesPar, eps)
+                  else approximatelyEqual(naive, brandesPar, eps);
+    const okPartitioned = if skipNaive then approximatelyEqual(brandesSeq, brandesPartitioned, eps)
+                          else approximatelyEqual(naive, brandesPartitioned, eps);
     const okPartitionedParallel = if !runPartitionedParallel then true
-      else if mode == "benchmark" then approximatelyEqual(brandesSeq, brandesPartitionedParallel, eps)
+      else if skipNaive then approximatelyEqual(brandesSeq, brandesPartitionedParallel, eps)
       else approximatelyEqual(naive, brandesPartitionedParallel, eps);
 
     if (!okSeq || !okPar || !okPartitioned || !okPartitionedParallel) then
       writeln("\n=== Run: Mismatches ===");
 
-    if mode != "benchmark" && !okSeq then
+    if !skipNaive && !okSeq then
       printFirstRealMismatches(naive, brandesSeq, eps, "Naive vs Seq", 5);
 
-    if mode != "benchmark" && !okPar then
-      printFirstRealMismatches(naive, brandesPar, eps, "Naive vs Par", 5);
+    if !okPar then
+      if skipNaive then
+        printFirstRealMismatches(brandesSeq, brandesPar, eps, "Seq vs Par", 5);
+      else
+        printFirstRealMismatches(naive, brandesPar, eps, "Naive vs Par", 5);
 
-    if mode != "benchmark" && !okPartitioned then
-      printFirstRealMismatches(naive, brandesPartitioned, eps, "Naive vs Partitioned", 5);
+    if !okPartitioned then
+      if skipNaive then
+        printFirstRealMismatches(brandesSeq, brandesPartitioned, eps, "Seq vs Partitioned", 5);
+      else
+        printFirstRealMismatches(naive, brandesPartitioned, eps, "Naive vs Partitioned", 5);
 
     if !okPartitionedParallel then
       if mode == "benchmark" then
@@ -155,6 +179,8 @@ module Main {
     rep.n = n;
     rep.seed = seed;
     rep.mode = mode;
+    rep.skipNaive = skipNaive;
+    rep.referenceAlgorithm = referenceAlgorithm;
     rep.graphModel = if edgeDensity >= 0.0 then "dense-opt-in" else "sparse";
     rep.undirectedEdges = g.numDirectedEdges() / 2;
     rep.directedEdges = g.numDirectedEdges();
@@ -163,14 +189,14 @@ module Main {
       (2.0 * (edgeDensity * ((n * (n - 1)) / 2):real)) / (if n > 0 then n:real else 1.0)
       else avgDegree:real;
     rep.generationSec = gen1 - gen0;
-    rep.naiveSec = naive1 - naive0;
+    rep.naiveSec = if skipNaive then 0.0 else (naive1 - naive0);
     rep.brandesSeqSec = seq1 - seq0;
     rep.brandesParSec = par1 - par0;
     rep.brandesPartitionedSec = pmsg1 - pmsg0;
     rep.brandesPartitionedParallelSec = if runPartitionedParallel then (ppar1 - ppar0) else 0.0;
     rep.ranPartitionedParallel = runPartitionedParallel;
     rep.partitionedParts = parts;
-    rep.naiveTotalSec = (gen1 - gen0) + (naive1 - naive0);
+    rep.naiveTotalSec = if skipNaive then 0.0 else (gen1 - gen0) + (naive1 - naive0);
     rep.brandesSeqTotalSec = (gen1 - gen0) + (seq1 - seq0);
     rep.brandesParTotalSec = (gen1 - gen0) + (par1 - par0);
     rep.brandesPartitionedTotalSec = (gen1 - gen0) + (pmsg1 - pmsg0);

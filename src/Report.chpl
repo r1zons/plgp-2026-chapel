@@ -24,6 +24,8 @@ module Report {
     var passedPartitioned: bool;
     var passedPartitionedParallel: bool;
     var mode: string;
+    var skipNaive: bool;
+    var referenceAlgorithm: string;
     var graphModel: string;
     var targetAvgDegree: real;
     var actualAvgDegree: real;
@@ -54,6 +56,7 @@ module Report {
     writeln("Graph size: ", rep.n);
     writeln("Seed: ", rep.seed);
     writeln("Run mode: ", rep.mode);
+    writeln("Reference algorithm: ", rep.referenceAlgorithm);
     writeln("Graph model: ", rep.graphModel);
     writeln("Target avg degree: ", rep.targetAvgDegree);
     writeln("Actual avg degree: ", rep.actualAvgDegree);
@@ -62,7 +65,10 @@ module Report {
 
     writeln("\n=== Run: Timings ===");
     writeln("Generation time: ", rep.generationSec);
-    writeln("Naive time: ", rep.naiveSec);
+    if rep.skipNaive then
+      writeln("Naive time: SKIPPED");
+    else
+      writeln("Naive time: ", rep.naiveSec);
     writeln("Brandes time: ", rep.brandesSeqSec);
     writeln("Parallel Brandes time: ", rep.brandesParSec);
     writeln("Partitioned Brandes time: ", rep.brandesPartitionedSec);
@@ -80,14 +86,20 @@ module Report {
     writeln("Partitioned gather time: ", rep.partitionedGatherSec);
 
     writeln("\n=== Run: Totals ===");
-    writeln("Naive total: ", rep.naiveTotalSec);
+    if rep.skipNaive then
+      writeln("Naive total: SKIPPED");
+    else
+      writeln("Naive total: ", rep.naiveTotalSec);
     writeln("Brandes total: ", rep.brandesSeqTotalSec);
     writeln("Parallel Brandes total: ", rep.brandesParTotalSec);
     writeln("Partitioned Brandes total: ", rep.brandesPartitionedTotalSec);
     writeln("Partitioned Parallel Brandes total: ", if rep.ranPartitionedParallel then rep.brandesPartitionedParallelTotalSec else -1.0);
 
     writeln("\n=== Run: Correctness ===");
-    writeln("Correctness check seq: ", if rep.passedSeq then "PASS" else "FAIL");
+    if rep.skipNaive then
+      writeln("Correctness check seq: REFERENCE");
+    else
+      writeln("Correctness check seq: ", if rep.passedSeq then "PASS" else "FAIL");
     writeln("Correctness check par: ", if rep.passedPar then "PASS" else "FAIL");
     writeln("Correctness check partitioned: ", if rep.passedPartitioned then "PASS" else "FAIL");
     writeln("Correctness check partitioned parallel: ", if rep.passedPartitionedParallel then "PASS" else "FAIL");

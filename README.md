@@ -75,6 +75,8 @@
 - `--seed=<seed>`
 - `--partitionedParts=<int>` (для partitioned алгоритмов; `<=0` => безопасный default)
 - `--runPartitionedParallel=true|false` (включить/выключить PartitionedBrandesParallel в Run)
+- `--skipNaive=true|false` (пропустить наивный алгоритм в Run для больших графов)
+- `--maxNaiveN=<int>` (порог для запуска NaiveBC; при `n > maxNaiveN` нужен `--skipNaive=true`)
 
 Примеры:
 
@@ -100,6 +102,8 @@ make clean       # очистить bin/
 ```bash
 ./scripts/pipeline.sh 100 42 correctness 16
 ./scripts/pipeline.sh 1000 42 benchmark 16
+./scripts/pipeline.sh 1000 42 --skipNaive=true
+./scripts/pipeline.sh 1000 42 benchmark 16 --skipNaive=true
 ```
 
 И отдельный sweep по количеству partition:
