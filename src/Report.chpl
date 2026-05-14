@@ -28,10 +28,16 @@ module Report {
     var skipNaive: bool;
     var referenceAlgorithm: string;
     var graphModel: string;
+    var partitionStrategy: string;
     var targetAvgDegree: real;
     var actualAvgDegree: real;
     var undirectedEdges: int;
     var directedEdges: int;
+    var minPartitionSize: int;
+    var maxPartitionSize: int;
+    var partitionCutEdges: int;
+    var partitionCutEdgeRatio: real;
+    var connectedParts: bool;
     var relaxMessagesSent: int(64);
     var dependencyMessagesSent: int(64);
     var cutEdgeTraversals: int(64);
@@ -63,6 +69,13 @@ module Report {
     writeln("Actual avg degree: ", rep.actualAvgDegree);
     writeln("Undirected edges: ", rep.undirectedEdges);
     writeln("Directed edges: ", rep.directedEdges);
+    writeln("partitionStrategy: ", rep.partitionStrategy);
+    writeln("partitionedParts: ", rep.partitionedParts);
+    writeln("Min partition size: ", rep.minPartitionSize);
+    writeln("Max partition size: ", rep.maxPartitionSize);
+    writeln("Cut edges: ", rep.partitionCutEdges);
+    writeln("Cut edge ratio: ", rep.partitionCutEdgeRatio);
+    writeln("Connected parts: ", if rep.connectedParts then "PASS" else "FAIL");
 
     writeln("\n=== Run: Timings ===");
     writeln("Generation time: ", rep.generationSec);
@@ -83,7 +96,6 @@ module Report {
       writeln("Partitioned Parallel message time: ", rep.pparMessageSec);
       writeln("Partitioned Parallel gather time: ", rep.pparGatherSec);
     }
-    writeln("Partitioned parts: ", rep.partitionedParts);
     writeln("Partitioned forward BFS time: ", rep.partitionedForwardBfsSec);
     writeln("Partitioned backward time: ", rep.partitionedBackwardSec);
     writeln("Partitioned message time: ", rep.partitionedMessageSec);

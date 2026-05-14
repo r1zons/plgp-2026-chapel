@@ -63,10 +63,81 @@ module TestPartitionedGraph {
     assertPartLayoutSafe(pg);
   }
 
+  private proc runContiguousCase() {
+    var g = generateConnectedRandomGraph(7, 303);
+    var pg = buildContiguousPartitionedGraph(g, 3);
+
+    assert(pg.strategy == "contiguous");
+    assert(pg.numLocalVertices(0) == 3);
+    assert(pg.numLocalVertices(1) == 3);
+    assert(pg.numLocalVertices(2) == 1);
+    assert(pg.ownerOfVertex(0) == 0);
+    assert(pg.ownerOfVertex(2) == 0);
+    assert(pg.ownerOfVertex(3) == 1);
+    assert(pg.ownerOfVertex(5) == 1);
+    assert(pg.ownerOfVertex(6) == 2);
+
+    assertUniqueOwnership(pg);
+    assertMappings(pg);
+    assertPartLayoutSafe(pg);
+  }
+
+  private proc runCommunityCase() {
+    const n = 100;
+    const communities = 4;
+    var g = generateConnectedClusteredRandomGraph(n, 404, communities, 0.05, 8);
+    var pg = buildCommunityPartitionedGraph(g, communities);
+
+    assert(pg.strategy == "community");
+    assert(pg.n == n);
+    assert(pg.numParts == communities);
+
+    assertUniqueOwnership(pg);
+    assertMappings(pg);
+    assertPartLayoutSafe(pg);
+
+    for v in 0..n-1 {
+      const expectedPart = (v * communities) / n;
+      assert(pg.ownerOfVertex(v) == expectedPart);
+    }
+
+    var minSize = pg.numLocalVertices(0);
+    var maxSize = pg.numLocalVertices(0);
+    for p in 0..communities-1 {
+      const nv = pg.numLocalVertices(p);
+      if nv < minSize then minSize = nv;
+      if nv > maxSize then maxSize = nv;
+    }
+    assert(maxSize - minSize <= 1);
+
+    const metrics = computePartitionMetrics(g, pg);
+    assert(metrics.minPartitionSize == minSize);
+    assert(metrics.maxPartitionSize == maxSize);
+    assert(metrics.connectedParts);
+    assert(metrics.cutEdges > 0);
+    assert(metrics.cutEdgeRatio > 0.0);
+    assert(metrics.cutEdgeRatio < 0.5);
+  }
+
+  private proc runInvalidConfigCases() {
+    assert(!partitionStrategyConfigIsValid("community", "sparse", 4, 4));
+    assert(partitionStrategyConfigErrorMessage("community") ==
+           communityStrategyConfigError);
+
+    assert(!partitionStrategyConfigIsValid("community", "clustered", 3, 4));
+    assert(partitionStrategyConfigErrorMessage("community") ==
+           communityStrategyConfigError);
+
+    assert(partitionStrategyConfigIsValid("contiguous", "sparse", 3, 4));
+  }
+
   proc main() {
     runCase(1, 1, 1);
     runCase(5, 2, 2);
     runCase(7, 3, 3);
+    runContiguousCase();
+    runCommunityCase();
+    runInvalidConfigCases();
 
     writeln("TestPartitionedGraph: PASS");
   }

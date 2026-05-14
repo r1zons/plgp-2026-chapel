@@ -73,6 +73,14 @@ module TestPartitionedBrandesParallel {
     runCase(g);
   }
 
+  private proc testDiamondGraph() {
+    const m = 5;
+    var eu: [0..m-1] int = [0, 0, 1, 2, 3];
+    var ev: [0..m-1] int = [1, 2, 3, 3, 4];
+    var g = buildCSRFromEdges(5, eu, ev);
+    runCase(g);
+  }
+
   private proc testRandomGraph() {
     var g = generateConnectedRandomGraph(20, 4242);
     runCase(g);
@@ -81,6 +89,7 @@ module TestPartitionedBrandesParallel {
   proc main() {
     testPathGraph();
     testStarGraph();
+    testDiamondGraph();
     testRandomGraph();
     writeln("TestPartitionedBrandesParallel: PASS");
   }

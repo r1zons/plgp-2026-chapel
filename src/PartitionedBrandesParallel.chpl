@@ -1,5 +1,6 @@
 module PartitionedBrandesParallel {
   use Time;
+  use List;
   use GraphCSR;
   use PartitionedGraph;
   use PartitionedState;
@@ -28,6 +29,14 @@ module PartitionedBrandesParallel {
     var pg = buildPartitionedGraph(g, numParts);
     const n = g.n;
     var metrics: PartitionedParallelRunMetrics;
+    var edgeOwnerPart: [g.colDom] int;
+    var edgeLocalIdx: [g.colDom] int;
+
+    for edgeIdx in g.colDom {
+      const w = g.colIdx[edgeIdx];
+      edgeOwnerPart[edgeIdx] = pg.ownerOfVertex(w);
+      edgeLocalIdx[edgeIdx] = pg.localIndexOfVertex(w);
+    }
 
     var bcLocal: PartitionedSourceState;
     bcLocal.initFromPartitionedGraph(pg);
@@ -35,6 +44,7 @@ module PartitionedBrandesParallel {
       bcLocal.parts[p].reset();
 
     proc accumulateOneSource(const ref g: CSRGraph, ref pg: PartitionedGraph,
+                             ref edgeOwnerPart: [] int, ref edgeLocalIdx: [] int,
                              source: int, ref bcLocal: PartitionedSourceState,
                              ref metrics: PartitionedParallelRunMetrics) {
       var st: PartitionedSourceState;
@@ -44,46 +54,54 @@ module PartitionedBrandesParallel {
       var msg = new PartitionedMessagesParallel(pg.numParts);
       var level = 0;
       var maxDist = 0;
+      const partDom = {0..pg.numParts-1};
+      var currentFrontierList: [partDom] list(int);
+      var nextFrontierList: [partDom] list(int);
+      const sourcePart = pg.ownerOfVertex(source);
+      const sourceLi = pg.localIndexOfVertex(source);
+      currentFrontierList[sourcePart].pushBack(sourceLi);
 
       const forwardStart = timeSinceEpoch().totalSeconds();
       while true {
         var hasWork = false;
-        for p in 0..pg.numParts-1 {
-          for li in st.parts[p].localDom {
-            if st.getFrontierLocal(p, li) {
-              hasWork = true;
-              break;
-            }
+        for p in partDom {
+          if currentFrontierList[p].size > 0 {
+            hasWork = true;
+            break;
           }
-          if hasWork then break;
         }
         if !hasWork then break;
 
         msg.clearAll();
-        for p in 0..pg.numParts-1 do
-          for li in st.parts[p].localDom do
-            st.setNextFrontierLocal(p, li, false);
+        for p in partDom do
+          nextFrontierList[p].clear();
 
         var relaxSentByPart: [0..pg.numParts-1] int(64);
         relaxSentByPart = 0:int(64);
         var cutByPart: [0..pg.numParts-1] int(64);
         cutByPart = 0:int(64);
+        var maxDistByPart: [0..pg.numParts-1] int;
+        maxDistByPart = maxDist;
 
-        coforall p in 0..pg.numParts-1 with (ref st, ref msg, ref relaxSentByPart, ref cutByPart) {
-          for li in st.parts[p].localDom {
-            if !st.getFrontierLocal(p, li) then continue;
+        coforall p in 0..pg.numParts-1 with (ref st, ref msg, ref currentFrontierList,
+                                             ref nextFrontierList, ref relaxSentByPart,
+                                             ref cutByPart, ref maxDistByPart) {
+          for li in currentFrontierList[p] {
             const v = pg.firstVertexOfPart(p) + li;
             const sigV = st.getSigmaLocal(p, li);
 
             for edgeIdx in g.rowPtr[v]..g.rowPtr[v+1]-1 {
               const w = g.colIdx[edgeIdx];
-              const wp = pg.ownerOfVertex(w);
+              const wp = edgeOwnerPart[edgeIdx];
               if wp == p {
-                const wLi = pg.localIndexOfVertex(w);
+                const wLi = edgeLocalIdx[edgeIdx];
                 if st.getDistLocal(p, wLi) < 0 {
                   st.setDistLocal(p, wLi, level + 1);
                   st.setSigmaLocal(p, wLi, sigV);
                   st.setNextFrontierLocal(p, wLi, true);
+                  nextFrontierList[p].pushBack(wLi);
+                  if level + 1 > maxDistByPart[p] then
+                    maxDistByPart[p] = level + 1;
                 } else if st.getDistLocal(p, wLi) == level + 1 {
                   st.addSigmaLocal(p, wLi, sigV);
                 }
@@ -99,6 +117,8 @@ module PartitionedBrandesParallel {
         for p in 0..pg.numParts-1 {
           metrics.relaxMessagesSent += relaxSentByPart[p];
           metrics.cutEdgeTraversals += cutByPart[p];
+          if maxDistByPart[p] > maxDist then
+            maxDist = maxDistByPart[p];
         }
 
         const msgStartForward = timeSinceEpoch().totalSeconds();
@@ -109,6 +129,9 @@ module PartitionedBrandesParallel {
               st.setDistLocal(dst, wLi, m.distance);
               st.setSigmaLocal(dst, wLi, m.sigmaContribution);
               st.setNextFrontierLocal(dst, wLi, true);
+              nextFrontierList[dst].pushBack(wLi);
+              if m.distance > maxDist then
+                maxDist = m.distance;
             } else if st.getDistLocal(dst, wLi) == m.distance {
               st.addSigmaLocal(dst, wLi, m.sigmaContribution);
             }
@@ -117,16 +140,11 @@ module PartitionedBrandesParallel {
         metrics.messageSec += timeSinceEpoch().totalSeconds() - msgStartForward;
         metrics.bfsLevelsProcessed += 1;
 
-        // Обновляем maxDist после завершения параллельного уровня.
-        for p in 0..pg.numParts-1 do
-          for li in st.parts[p].localDom do
-            if st.getNextFrontierLocal(p, li) {
-              const d = st.getDistLocal(p, li);
-              if d > maxDist then
-                maxDist = d;
-            }
-
-        st.swapOrMoveNextFrontierToFrontier();
+        for p in partDom {
+          currentFrontierList[p].clear();
+          for li in nextFrontierList[p] do
+            currentFrontierList[p].pushBack(li);
+        }
         level += 1;
       }
       metrics.forwardBfsSec += timeSinceEpoch().totalSeconds() - forwardStart;
@@ -148,8 +166,8 @@ module PartitionedBrandesParallel {
             const factor = (1.0 + st.getDeltaLocal(p, wLi)) / sigmaW:real;
             for edgeIdx in g.rowPtr[w]..g.rowPtr[w+1]-1 {
               const v = g.colIdx[edgeIdx];
-              const vp = pg.ownerOfVertex(v);
-              const vLi = pg.localIndexOfVertex(v);
+              const vp = edgeOwnerPart[edgeIdx];
+              const vLi = edgeLocalIdx[edgeIdx];
               if st.getDistLocal(vp, vLi) == level - 1 {
                 const contrib = st.getSigmaLocal(vp, vLi):real * factor;
                 if vp == p {
@@ -188,7 +206,7 @@ module PartitionedBrandesParallel {
     }
 
     for s in 0..n-1 do
-      accumulateOneSource(g, pg, s, bcLocal, metrics);
+      accumulateOneSource(g, pg, edgeOwnerPart, edgeLocalIdx, s, bcLocal, metrics);
 
     const gatherStart = timeSinceEpoch().totalSeconds();
     var bc = bcLocal.gatherDelta();

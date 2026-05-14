@@ -16,6 +16,7 @@ module Main {
   use NaiveBC;
   use BrandesBC;
   use BrandesBCParallel;
+  use PartitionedGraph;
   use PartitionedBrandes;
   use PartitionedBrandesParallel;
   use Compare;
@@ -67,7 +68,7 @@ module Main {
     writeln("Seed: ", seed);
     const undirectedEdges = g.numDirectedEdges() / 2;
     const actualAvgDegree = if n > 0 then (2.0 * undirectedEdges:real) / n:real else 0.0;
-    const model = if edgeDensity >= 0.0 then "density-opt-in" else "sparse";
+    const model = if edgeDensity >= 0.0 then "density-opt-in" else graphModel;
     const targetAvgDegree = if edgeDensity >= 0.0 then
       (2.0 * (edgeDensity * ((n * (n - 1)) / 2):real)) / (if n > 0 then n:real else 1.0)
       else avgDegree:real;
@@ -87,12 +88,22 @@ module Main {
     writeln("skipNaive: ", skipNaive);
     writeln("runPartitioned: ", runPartitioned);
     writeln("runPartitionedParallel: ", runPartitionedParallel);
+    writeln("partitionStrategy: ", partitionStrategy);
     writeln("partitionedParts: ", partitionedParts);
     writeln("maxNaiveN: ", maxNaiveN);
     writeln("Reference algorithm: ", referenceAlgorithm);
 
     if !skipNaive && n > maxNaiveN then
       halt("NaiveBC is disabled for n > maxNaiveN. Use --skipNaive=true or increase --maxNaiveN explicitly.");
+
+    var parts = partitionedParts;
+    if parts <= 0 then
+      parts = if n >= 2 then 2 else 1;
+    if parts > n then
+      parts = n;
+
+    if !partitionStrategyConfigIsValid(graphModel, parts, numCommunities) then
+      halt(partitionStrategyConfigErrorMessage());
 
     const gen0 = timeSinceEpoch().totalSeconds();
     var g = generateConnectedRandomGraph(n, seed);
@@ -123,11 +134,8 @@ module Main {
     var brandesPar = computeBrandesBCParallelReal(g, parTasks);
     const par1 = timeSinceEpoch().totalSeconds();
 
-    var parts = partitionedParts;
-    if parts <= 0 then
-      parts = if n >= 2 then 2 else 1;
-    if parts > n then
-      parts = n;
+    var pgForReport = buildPartitionedGraph(g, parts);
+    const partitionMetrics = computePartitionMetrics(g, pgForReport);
 
     var brandesPartitioned: [0..n-1] real;
     brandesPartitioned = 0.0;
@@ -195,7 +203,8 @@ module Main {
     rep.skipNaive = skipNaive;
     rep.referenceAlgorithm = referenceAlgorithm;
     rep.ranPartitioned = runPartitioned;
-    rep.graphModel = if edgeDensity >= 0.0 then "dense-opt-in" else "sparse";
+    rep.graphModel = if edgeDensity >= 0.0 then "dense-opt-in" else graphModel;
+    rep.partitionStrategy = partitionStrategy;
     rep.undirectedEdges = g.numDirectedEdges() / 2;
     rep.directedEdges = g.numDirectedEdges();
     rep.actualAvgDegree = if n > 0 then (2.0 * rep.undirectedEdges:real) / n:real else 0.0;
@@ -210,6 +219,11 @@ module Main {
     rep.brandesPartitionedParallelSec = if runPartitionedParallel then (ppar1 - ppar0) else 0.0;
     rep.ranPartitionedParallel = runPartitionedParallel;
     rep.partitionedParts = parts;
+    rep.minPartitionSize = partitionMetrics.minPartitionSize;
+    rep.maxPartitionSize = partitionMetrics.maxPartitionSize;
+    rep.partitionCutEdges = partitionMetrics.cutEdges;
+    rep.partitionCutEdgeRatio = partitionMetrics.cutEdgeRatio;
+    rep.connectedParts = partitionMetrics.connectedParts;
     rep.naiveTotalSec = if skipNaive then 0.0 else (gen1 - gen0) + (naive1 - naive0);
     rep.brandesSeqTotalSec = (gen1 - gen0) + (seq1 - seq0);
     rep.brandesParTotalSec = (gen1 - gen0) + (par1 - par0);

@@ -17,6 +17,8 @@ The following implementations are stable and must not be broken:
 Completed in the current codebase:
 
 - Sparse graph generation by `avgDegree`.
+- Clustered sparse graph generation by `avgDegree`, `numCommunities`, and `interCommunityFraction`.
+- Partition strategies: contiguous vertex blocks and clustered community-aligned partitions.
 - Partition-local traversal state.
 - Serial partitioned message-passing Brandes.
 - Parallel-safe 2D message buffers.
@@ -24,12 +26,7 @@ Completed in the current codebase:
 
 ## 3. Current next step
 
-The next intended step is to integrate `PartitionedBrandesParallel` into the user-facing run/report pipeline as a separate measured algorithm:
-
-- `src/Main.chpl`
-- `src/Report.chpl`
-- `scripts/pipeline.sh` (if needed)
-- `README.md`
+The next intended step is to use clustered graphs and community-aligned partitions for focused partitioned Brandes experiments, while keeping Brandes algorithm semantics unchanged.
 
 ## 4. Important instruction
 
