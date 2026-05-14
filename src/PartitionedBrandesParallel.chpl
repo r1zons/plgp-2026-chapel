@@ -29,13 +29,17 @@ module PartitionedBrandesParallel {
     var pg = buildPartitionedGraph(g, numParts);
     const n = g.n;
     var metrics: PartitionedParallelRunMetrics;
+    var vertexLocalIdxCache: [0..n-1] int;
     var edgeOwnerPart: [g.colDom] int;
     var edgeLocalIdx: [g.colDom] int;
+
+    for v in 0..n-1 do
+      vertexLocalIdxCache[v] = pg.localIndexOfVertex(v);
 
     for edgeIdx in g.colDom {
       const w = g.colIdx[edgeIdx];
       edgeOwnerPart[edgeIdx] = pg.ownerOfVertex(w);
-      edgeLocalIdx[edgeIdx] = pg.localIndexOfVertex(w);
+      edgeLocalIdx[edgeIdx] = vertexLocalIdxCache[w];
     }
 
     var bcLocal: PartitionedSourceState;
@@ -44,6 +48,7 @@ module PartitionedBrandesParallel {
       bcLocal.parts[p].reset();
 
     proc accumulateOneSource(const ref g: CSRGraph, ref pg: PartitionedGraph,
+                             ref vertexLocalIdxCache: [] int,
                              ref edgeOwnerPart: [] int, ref edgeLocalIdx: [] int,
                              source: int, ref bcLocal: PartitionedSourceState,
                              ref metrics: PartitionedParallelRunMetrics) {
@@ -58,7 +63,7 @@ module PartitionedBrandesParallel {
       var currentFrontierList: [partDom] list(int);
       var nextFrontierList: [partDom] list(int);
       const sourcePart = pg.ownerOfVertex(source);
-      const sourceLi = pg.localIndexOfVertex(source);
+      const sourceLi = vertexLocalIdxCache[source];
       currentFrontierList[sourcePart].pushBack(sourceLi);
 
       const forwardStart = timeSinceEpoch().totalSeconds();
@@ -124,7 +129,7 @@ module PartitionedBrandesParallel {
         const msgStartForward = timeSinceEpoch().totalSeconds();
         for dst in 0..pg.numParts-1 {
           for m in msg.relaxMessagesTo(dst) {
-            const wLi = pg.localIndexOfVertex(m.targetVertex);
+            const wLi = vertexLocalIdxCache[m.targetVertex];
             if st.getDistLocal(dst, wLi) < 0 {
               st.setDistLocal(dst, wLi, m.distance);
               st.setSigmaLocal(dst, wLi, m.sigmaContribution);
@@ -187,7 +192,7 @@ module PartitionedBrandesParallel {
         const msgStartBackward = timeSinceEpoch().totalSeconds();
         for dst in 0..pg.numParts-1 {
           for m in msg.dependencyMessagesTo(dst) {
-            const vLi = pg.localIndexOfVertex(m.targetVertex);
+            const vLi = vertexLocalIdxCache[m.targetVertex];
             st.addDeltaLocal(dst, vLi, m.contribution);
           }
         }
@@ -206,7 +211,8 @@ module PartitionedBrandesParallel {
     }
 
     for s in 0..n-1 do
-      accumulateOneSource(g, pg, edgeOwnerPart, edgeLocalIdx, s, bcLocal, metrics);
+      accumulateOneSource(g, pg, vertexLocalIdxCache, edgeOwnerPart, edgeLocalIdx,
+                          s, bcLocal, metrics);
 
     const gatherStart = timeSinceEpoch().totalSeconds();
     var bc = bcLocal.gatherDelta();

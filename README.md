@@ -115,6 +115,56 @@ make clean       # очистить bin/
 ./scripts/pipeline.sh 10000 42 benchmark 16 --skipNaive=true --runPartitioned=false
 ```
 
+Для финального сводного бенчмарка есть отдельный скрипт:
+
+```bash
+chmod +x scripts/final_benchmark_summary.sh
+N_VALUES="1000" ./scripts/final_benchmark_summary.sh
+```
+
+По умолчанию он пишет:
+
+- логи: `results/final_benchmark_logs/`
+- CSV: `results/final_benchmark_summary.csv`
+
+Переопределяемые переменные окружения:
+
+- `N_VALUES="1000 2000 4000"`
+- `SEED=42`
+- `AVG_DEGREE=16`
+- `GRAPH_MODEL=clustered`
+- `PARTITION_STRATEGY=community`
+- `PARTS=4`
+- `NUM_COMMUNITIES=4`
+- `INTER=0.05`
+
+## Running N/partition sweep on a server
+
+Полный sweep:
+
+```bash
+./scripts/server_n_parts_sweep.sh
+```
+
+Быстрый smoke run:
+
+```bash
+N_VALUES="1000" PARTS_VALUES="1 2 4" ./scripts/server_n_parts_sweep.sh
+```
+
+Кастомный sweep:
+
+```bash
+N_VALUES="2000 4000 8000" PARTS_VALUES="2 4 8 16" INTER=0.05 ./scripts/server_n_parts_sweep.sh
+```
+
+Результаты:
+
+- run dir: `results/server/runs/<timestamp>/`
+- логи: `results/server/runs/<timestamp>/logs/`
+- CSV: `results/server/runs/<timestamp>/summary/server_n_parts_sweep.csv`
+- run config: `results/server/runs/<timestamp>/run_config.txt`
+
 И отдельный sweep по количеству partition:
 
 ```bash

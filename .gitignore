@@ -1,0 +1,7 @@
+bin/
+results/
+job_logs/
+job_scripts/
+*.out
+*.err
+*.log
